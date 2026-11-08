@@ -1,15 +1,16 @@
-import { LaneSection } from './Lane';
+import { Compact } from './variants/Compact';
 import { buildLanes, getWindow, getHealth } from '../src/lanes';
 import { RETENTION } from '../config/retention';
 import { toView } from '../src/view';
 
 /**
- * Shared by / and /unread.
+ * The homepage: the Compact layout -- two columns of titles, no summaries or images,
+ * built for scanning many headlines quickly and opening a few.
  *
- * These are two separate ROUTES rather than one route with a `?unread=1` search param,
- * because reading searchParams makes a route dynamic -- which would mean every first visit
- * of the day pays a Neon cold start, exactly what the caching is meant to avoid. Two
- * static routes keep both views in the ISR cache and need no client JavaScript.
+ * Shared by / and /unread as two separate ROUTES rather than one route with a `?unread=1`
+ * search param, because reading searchParams makes a route dynamic, which would mean every
+ * first visit of the day pays a Neon cold start. Two static routes keep both in the ISR
+ * cache and need no client JavaScript.
  */
 export async function HomeView({ unreadOnly }: { unreadOnly: boolean }) {
   let items;
@@ -27,8 +28,13 @@ export async function HomeView({ unreadOnly }: { unreadOnly: boolean }) {
     );
   }
 
-  const lanes = buildLanes(items, { unreadOnly });
   const now = Date.now();
+  const lanes = buildLanes(items, { unreadOnly }).map((l) => ({
+    ...l,
+    visible: l.visible.map((i) => toView(i, now)),
+    overflow: l.overflow.map((i) => toView(i, now)),
+  }));
+
   const unreadCount = items.filter((i) => !i.readAt).length;
   const { lastRun, feeds } = health;
   const broken = feeds.filter((f) => f.consecutive_failures >= 6);
@@ -41,6 +47,7 @@ export async function HomeView({ unreadOnly }: { unreadOnly: boolean }) {
           <a href={unreadOnly ? '/' : '/unread'}>{unreadOnly ? 'show all' : 'unread only'}</a>
           <a href="/saved">saved</a>
           <a href="/health">health</a>
+          <a href="/v/digest">layouts</a>
         </nav>
       </div>
 
@@ -62,16 +69,7 @@ export async function HomeView({ unreadOnly }: { unreadOnly: boolean }) {
         </div>
       ) : null}
 
-      {lanes.map((lane) => (
-        <LaneSection
-          key={lane.topic}
-          label={lane.label}
-          topic={lane.topic}
-          total={lane.total}
-          visible={lane.visible.map((i) => toView(i, now))}
-          overflow={lane.overflow.map((i) => toView(i, now))}
-        />
-      ))}
+      <Compact lanes={lanes} />
     </main>
   );
 }
