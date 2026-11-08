@@ -61,13 +61,21 @@ unpredictably. The ingest job is connected at prune time, so it always runs.
    with no password set it stays open, which is what you want locally).
 
    Vercel enables SSO Deployment Protection by default, which redirects every request to a
-   Vercel login — so the site only opens in a browser signed into your Vercel account, and
-   the cache-refresh webhook below silently stops working. Since `APP_PASSWORD` already
-   guards the site from any device, turn the SSO wall off:
+   Vercel login — so a `.vercel.app` URL only opens in a browser signed into your Vercel
+   account, and the cache-refresh webhook below silently stops reaching it.
+
+   That default is scoped `all_except_custom_domains`, so **attaching a custom domain is
+   the cleanest fix** — the custom domain is exempt from SSO while the preview URLs stay
+   protected, and `APP_PASSWORD` guards it from any device:
 
    ```bash
-   vercel project protection disable --sso
+   vercel domains add news.example.com <project>
    ```
+
+   Vercel then prints the DNS record to add at your provider (an `A` record to
+   `76.76.21.21` when the domain uses third-party nameservers). If you would rather use the
+   `.vercel.app` URL directly, turn the wall off instead with
+   `vercel project protection disable --sso`.
 3. **Schedule** — add repository **secrets** `DATABASE_URL` (the *owner* role; ingest
    writes) and `REVALIDATE_SECRET`, plus a repository **variable** `SITE_URL`. The workflow
    must be merged to the default branch before any scheduled run happens.
