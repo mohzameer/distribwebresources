@@ -13,3 +13,5 @@ next-env.d.ts
 *.tmp
 *.log
 .DS_Store
+.vercel
+.env*

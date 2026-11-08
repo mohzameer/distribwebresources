@@ -56,12 +56,21 @@ unpredictably. The ingest job is connected at prune time, so it always runs.
 
 1. **Database** — create a Neon project, then `cp .env.example .env.local`, fill in
    `DATABASE_URL`, and run `npm run migrate`.
-2. **Deploy** — import the repo on Vercel. Set `DATABASE_URL`, `REVALIDATE_SECRET`
-   (`openssl rand -base64 32`) and `APP_PASSWORD` (the site is behind HTTP Basic; with no
-   password set it stays open, which is what you want locally).
-3. **Schedule** — add repository **secrets** `DATABASE_URL`, `REVALIDATE_SECRET` and
-   `KEEPALIVE_TOKEN`, and a repository **variable** `SITE_URL`. The workflow must be merged
-   to the default branch before any scheduled run happens.
+2. **Deploy** — import the repo on Vercel. Set `DATABASE_URL` (use a restricted `web`
+   role, see below), `REVALIDATE_SECRET` and `APP_PASSWORD` (the site is behind HTTP Basic;
+   with no password set it stays open, which is what you want locally).
+
+   Vercel enables SSO Deployment Protection by default, which redirects every request to a
+   Vercel login — so the site only opens in a browser signed into your Vercel account, and
+   the cache-refresh webhook below silently stops working. Since `APP_PASSWORD` already
+   guards the site from any device, turn the SSO wall off:
+
+   ```bash
+   vercel project protection disable --sso
+   ```
+3. **Schedule** — add repository **secrets** `DATABASE_URL` (the *owner* role; ingest
+   writes) and `REVALIDATE_SECRET`, plus a repository **variable** `SITE_URL`. The workflow
+   must be merged to the default branch before any scheduled run happens.
 4. **First week** — set the repository variable `DROP_DRY_RUN=1`. Hard-drop rules then only
    *log* what they would delete, to the job summary. A dropped item leaves no trace, so
    read a week of those lists before trusting the rules, then remove the variable.
@@ -69,10 +78,12 @@ unpredictably. The ingest job is connected at prune time, so it always runs.
 ### Two things that will bite you otherwise
 
 - **GitHub disables scheduled workflows after 60 days of repository inactivity.** This job
-  writes to Neon, not to git, so the repo looks idle and the cron stops silently. A
-  `keepalive.yml` on its own `schedule` does *not* fix it — it is subject to the same rule.
-  Only real repository activity resets the clock, so the workflow commits a run summary
-  once a week using `KEEPALIVE_TOKEN` (a fine-grained PAT with `contents: write`).
+  writes to Neon, not to git, so the repo can look idle and the cron stops silently. Note a
+  `keepalive.yml` on its own `schedule` would *not* fix it — it is subject to the same rule;
+  only real repository activity resets the clock. There is deliberately no automated
+  keepalive here: push any commit every couple of months instead. GitHub emails you before
+  it disables anything, `gh workflow enable ingest.yml` re-enables it, and `/health` shows a
+  stale `last run` within a day.
 - **Use two different database credentials.** Give Vercel a `web` role with `select` plus
   column-level `update (read_at, saved_at, pinned, note)`, and keep full DML for the
   `ingest` role in Actions. Then a bug in the web app cannot delete your saved articles.
