@@ -147,6 +147,20 @@ export async function persistItems(
       );
     }
 
+    // Backfill images onto rows that were stored before this column existed, and onto any
+    // item whose feed only added one later. Only ever fills a NULL, never overwrites.
+    const withImage = existing
+      .map((p) => ({ p, hit: lookup(p)! }))
+      .filter((x) => x.hit.itemId && x.p.item.imageUrl);
+    if (withImage.length > 0) {
+      await client.query(
+        `update items i set image_url = t.image_url
+           from unnest($1::bigint[], $2::text[]) as t(id, image_url)
+          where i.id = t.id and i.image_url is null`,
+        [withImage.map((x) => x.hit.itemId), withImage.map((x) => x.p.item.imageUrl)],
+      );
+    }
+
     if (fresh.length === 0) {
       await client.query('commit');
       return result;
@@ -157,18 +171,19 @@ export async function persistItems(
       `insert into items (
          source_id, source_name, topic, url, url_key, title, summary, author,
          published_at, published_estimated, base_score, score_version, score_debug,
-         hn_url, hn_points, read_at
+         hn_url, hn_points, read_at, image_url
        )
        select source_id, source_name, topic, url, url_key, title, summary, author,
               published_at, published_estimated, base_score, score_version,
-              score_debug::jsonb, hn_url, hn_points, read_at
+              score_debug::jsonb, hn_url, hn_points, read_at, image_url
          from unnest(
            $1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[],
            $7::text[], $8::text[], $9::timestamptz[], $10::boolean[], $11::real[],
-           $12::smallint[], $13::text[], $14::text[], $15::int[], $16::timestamptz[]
+           $12::smallint[], $13::text[], $14::text[], $15::int[], $16::timestamptz[],
+           $17::text[]
          ) as t(source_id, source_name, topic, url, url_key, title, summary, author,
                 published_at, published_estimated, base_score, score_version, score_debug,
-                hn_url, hn_points, read_at)
+                hn_url, hn_points, read_at, image_url)
         on conflict (url_key) do nothing
         returning id, url_key`,
       [
@@ -189,6 +204,7 @@ export async function persistItems(
         fresh.map((p) => p.item.hnPoints ?? null),
         // A tombstone that remembers you already read this keeps it out of the unread lane.
         fresh.map((p) => (carriesRead(lookup(p)?.disposition) ? new Date() : null)),
+        fresh.map((p) => p.item.imageUrl),
       ],
     );
 

@@ -50,6 +50,7 @@ export function parseHnJson(feed: Feed, body: string): NormalizedItem[] {
       author: hit.author ?? null,
       publishedAt: valid ? created : new Date(),
       publishedEstimated: !valid,
+      imageUrl: null,
       hnUrl: discussion,
       hnPoints: hit.points ?? null,
     });

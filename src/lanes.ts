@@ -16,6 +16,7 @@ export type Item = {
   hnPoints: number | null;
   readAt: Date | null;
   savedAt: Date | null;
+  imageUrl: string | null;
   /** base_score * recency, computed here rather than in SQL. */
   renderScore: number;
 };
@@ -42,6 +43,7 @@ type Row = {
   hn_points: number | null;
   read_at: string | null;
   saved_at: string | null;
+  image_url: string | null;
 };
 
 /**
@@ -53,7 +55,7 @@ type Row = {
 export async function getWindow(): Promise<Item[]> {
   const rows = (await sql()`
     select id, source_id, source_name, topic, title, url, summary, published_at,
-           base_score, hn_url, hn_points, read_at, saved_at
+           base_score, hn_url, hn_points, read_at, saved_at, image_url
       from items
      where published_at > now() - (${RETENTION.itemTtlDays}::int * interval '1 day')
      order by topic, base_score desc
@@ -78,6 +80,7 @@ export async function getWindow(): Promise<Item[]> {
       hnPoints: r.hn_points === null ? null : Number(r.hn_points),
       readAt: r.read_at ? new Date(r.read_at) : null,
       savedAt: r.saved_at ? new Date(r.saved_at) : null,
+      imageUrl: r.image_url,
       renderScore: baseScore * recency(ageHours, r.topic),
     };
   });
@@ -158,7 +161,7 @@ export async function getHealth(): Promise<{
 export async function getSaved(): Promise<Item[]> {
   const rows = (await sql()`
     select id, source_id, source_name, topic, title, url, summary, published_at,
-           base_score, hn_url, hn_points, read_at, saved_at
+           base_score, hn_url, hn_points, read_at, saved_at, image_url
       from items
      where saved_at is not null
      order by saved_at desc
@@ -179,6 +182,7 @@ export async function getSaved(): Promise<Item[]> {
     hnPoints: r.hn_points === null ? null : Number(r.hn_points),
     readAt: r.read_at ? new Date(r.read_at) : null,
     savedAt: r.saved_at ? new Date(r.saved_at) : null,
+    imageUrl: r.image_url,
     renderScore: 0,
   }));
 }

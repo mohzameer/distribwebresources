@@ -1,5 +1,6 @@
 import type { ItemView } from '../components/ItemRow';
 import type { Item } from './lanes';
+import type { Topic } from '../config/scoring';
 
 /** "3h" / "2d" / "Nov 3" -- compact enough for a dense scannable row. */
 export function ageLabel(date: Date, now = Date.now()): string {
@@ -18,10 +19,12 @@ export function toView(item: Item, now = Date.now()): ItemView {
     title: item.title,
     url: item.url,
     sourceName: item.sourceName,
+    topic: item.topic,
     summary: item.summary,
     ageLabel: ageLabel(item.publishedAt, now),
     hnUrl: item.hnUrl,
     hnPoints: item.hnPoints,
+    imageUrl: item.imageUrl,
     read: item.readAt !== null,
     saved: item.savedAt !== null,
   };

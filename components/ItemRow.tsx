@@ -8,6 +8,8 @@ export type ItemView = {
   title: string;
   url: string;
   sourceName: string;
+  topic: string;
+  imageUrl: string | null;
   summary: string | null;
   ageLabel: string;
   hnUrl: string | null;

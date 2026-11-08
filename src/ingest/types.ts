@@ -15,6 +15,7 @@ export type NormalizedItem = {
   publishedAt: Date;
   /** True when the feed gave no usable date and we fell back to "now". */
   publishedEstimated: boolean;
+  imageUrl: string | null;
   hnUrl?: string | null;
   hnPoints?: number | null;
 };

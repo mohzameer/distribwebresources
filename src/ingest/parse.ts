@@ -2,7 +2,7 @@ import { createRequire } from 'node:module';
 import type { Feed } from '../../config/feeds/index';
 import { RETENTION } from '../../config/retention';
 import { SCORING } from '../../config/scoring';
-import { cleanTitle, htmlToText, stripBoilerplate, truncate } from './normalize';
+import { cleanTitle, extractImage, htmlToText, stripBoilerplate, truncate } from './normalize';
 import { urlKeyOf } from './keys';
 import { parseHnJson } from './adapters/hn';
 import type { NormalizedItem } from './types';
@@ -20,6 +20,8 @@ const { parseFeed } = require('@rowanmanning/feed-parser') as {
       published: Date | null;
       updated: Date | null;
       authors: Array<{ name: string | null }>;
+      image: { url?: string | null } | null;
+      media: Array<{ url?: string | null; image?: string | null; mimeType?: string | null }>;
     }>;
   };
 };
@@ -68,6 +70,7 @@ export function parseItems(feed: Feed, body: string): NormalizedItem[] {
       author: raw.authors?.[0]?.name?.trim() || null,
       publishedAt: notFuture ? (date as Date) : new Date(),
       publishedEstimated: !notFuture,
+      imageUrl: extractImage(raw),
     });
   }
 

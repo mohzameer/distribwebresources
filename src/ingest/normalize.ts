@@ -100,3 +100,33 @@ export function truncate(text: string | null, max: number): string | null {
 export function cleanTitle(title: string): string {
   return decode(title).replace(/\s+/g, ' ').trim();
 }
+
+/**
+ * Pull a usable image out of a feed item, in descending order of trustworthiness:
+ * a declared <image>, then a media:* element, then the first <img> in the body HTML.
+ * Returns null freely -- 19 of our feeds never carry one.
+ */
+export function extractImage(raw: {
+  image?: { url?: string | null } | null;
+  media?: Array<{ url?: string | null; image?: string | null; mimeType?: string | null }>;
+  content?: string | null;
+  description?: string | null;
+}): string | null {
+  const candidate = (() => {
+    if (raw.image?.url) return raw.image.url;
+    for (const m of raw.media ?? []) {
+      if (m.image) return m.image;
+      if (m.url && /^image\//.test(m.mimeType ?? '')) return m.url;
+    }
+    const html = `${raw.content ?? ''}${raw.description ?? ''}`;
+    return html.match(/<img[^>]+src=["\']([^"\']+)["\']/i)?.[1] ?? null;
+  })();
+
+  if (!candidate) return null;
+  const url = candidate.trim();
+  // Only absolute https: a relative or http src would break or mixed-content-block.
+  if (!/^https:\/\//i.test(url)) return null;
+  // Tracking pixels and spacers are worse than no image at all.
+  if (/\b(1x1|pixel|spacer|blank|tracking)\b/i.test(url)) return null;
+  return url.length <= 1000 ? url : null;
+}
