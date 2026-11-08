@@ -1,29 +1,28 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { AUTH_COOKIE, verifyToken } from './src/auth';
 
 /**
- * Single-password gate. It is a personal site with mutable state on a public URL, so this
- * is the cheapest adequate protection: no provider, no cost, ~20 lines.
+ * Single-password gate backed by a signed cookie: you sign in once per device and stay
+ * signed in for a year, rather than being re-prompted every session as Basic auth did.
  *
- * If APP_PASSWORD is unset the site stays open, which is what you want locally.
+ * With APP_PASSWORD unset the site stays open, which is what you want locally.
  */
-export function middleware(request: NextRequest): NextResponse {
+export async function middleware(request: NextRequest) {
   const password = process.env.APP_PASSWORD;
   if (!password) return NextResponse.next();
 
-  const header = request.headers.get('authorization');
-  if (header?.startsWith('Basic ')) {
-    const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
-    const supplied = decoded.slice(decoded.indexOf(':') + 1);
-    if (supplied === password) return NextResponse.next();
-  }
+  const token = request.cookies.get(AUTH_COOKIE)?.value;
+  if (await verifyToken(token, password)) return NextResponse.next();
 
-  return new NextResponse('Authentication required', {
-    status: 401,
-    headers: { 'WWW-Authenticate': 'Basic realm="news", charset="UTF-8"' },
-  }) as NextResponse;
+  const login = new URL('/login', request.url);
+  // Come back to whatever you were trying to open.
+  const next = request.nextUrl.pathname + request.nextUrl.search;
+  if (next && next !== '/') login.searchParams.set('next', next);
+  return NextResponse.redirect(login);
 }
 
 export const config = {
-  // /api/revalidate carries its own bearer token, so it must not sit behind Basic auth.
-  matcher: ['/((?!api/revalidate|_next/static|_next/image|favicon.ico).*)'],
+  // /api/revalidate carries its own bearer token, and /login is the way back in, so
+  // neither may sit behind the cookie check.
+  matcher: ['/((?!api/revalidate|login|_next/static|_next/image|favicon.ico).*)'],
 };

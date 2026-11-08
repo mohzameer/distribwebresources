@@ -208,3 +208,48 @@ table.health td.err { color: var(--accent); font-size: 12px; max-width: 420px; }
   .wrap { padding: 18px 16px 60px; }
   .item-summary { -webkit-line-clamp: 3; }
 }
+
+/* ---------- login ---------- */
+.login {
+  max-width: 320px;
+  margin: 18vh auto 0;
+}
+.login h1 {
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  margin: 0 0 18px;
+}
+.login form { display: flex; flex-direction: column; gap: 7px; }
+.login label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.login input {
+  font: inherit;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+.login input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.login button {
+  font: inherit;
+  font-weight: 550;
+  margin-top: 6px;
+  padding: 9px 11px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--bg);
+  cursor: pointer;
+}
+.login button:hover { opacity: 0.9; }
+.login .err { color: var(--accent); font-size: 12.5px; margin: 2px 0 0; }
+.login .hint { color: var(--faint); font-size: 12px; margin: 10px 0 0; }
