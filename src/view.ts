@@ -13,14 +13,26 @@ export function ageLabel(date: Date, now = Date.now()): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+/**
+ * Several feeds (The New Stack among them) publish ~125-character excerpts that stop
+ * mid-sentence. That is their truncation, not ours -- we store up to 600 characters. An
+ * ellipsis makes the cut read as deliberate rather than as a rendering bug.
+ */
+function tidySummary(summary: string | null): string | null {
+  if (!summary) return null;
+  const text = summary.trimEnd();
+  return /[.!?\u2026"')\]]$/.test(text) ? text : `${text}\u2026`;
+}
+
 export function toView(item: Item, now = Date.now()): ItemView {
   return {
     id: String(item.id),
     title: item.title,
     url: item.url,
+    sourceId: item.sourceId,
     sourceName: item.sourceName,
     topic: item.topic,
-    summary: item.summary,
+    summary: tidySummary(item.summary),
     ageLabel: ageLabel(item.publishedAt, now),
     hnUrl: item.hnUrl,
     hnPoints: item.hnPoints,

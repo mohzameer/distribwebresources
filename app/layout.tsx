@@ -1,23 +1,32 @@
 import type { Metadata, Viewport } from 'next';
-import { Source_Serif_4, Inter } from 'next/font/google';
+import { Libre_Caslon_Text, Libre_Caslon_Display, Libre_Franklin } from 'next/font/google';
 import './globals.css';
 
 /**
- * Substack's pairing: a readable screen serif for anything you actually read, a neutral
- * sans for chrome and metadata. Loaded through next/font so they are self-hosted at build
- * time -- no runtime request to Google and no layout shift as they swap in.
+ * The broadsheet pairing: Libre Caslon for headlines and body, Libre Franklin for kickers,
+ * bylines and labels -- the open equivalents of the Cheltenham/Franklin pairing a
+ * newspaper uses. Loaded through next/font so they are self-hosted at build time: no
+ * runtime request to Google and no layout shift as they swap in.
  */
-const serif = Source_Serif_4({
+const serif = Libre_Caslon_Text({
   subsets: ['latin'],
   display: 'swap',
-  weight: ['400', '600', '700'],
+  weight: ['400', '700'],
+  style: ['normal', 'italic'],
   variable: '--font-serif',
 });
 
-const sans = Inter({
+const displaySerif = Libre_Caslon_Display({
   subsets: ['latin'],
   display: 'swap',
-  weight: ['400', '500', '600'],
+  weight: ['400'],
+  variable: '--font-display',
+});
+
+const sans = Libre_Franklin({
+  subsets: ['latin'],
+  display: 'swap',
+  weight: ['400', '500', '600', '700', '800'],
   variable: '--font-sans',
 });
 
@@ -39,7 +48,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${serif.variable} ${sans.variable}`} data-theme="light">
+    <html lang="en" className={`${serif.variable} ${displaySerif.variable} ${sans.variable}`} data-theme="light">
       <body>
         <div className="wrap">{children}</div>
       </body>

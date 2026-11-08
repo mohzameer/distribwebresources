@@ -7,6 +7,7 @@ export type ItemView = {
   id: string;
   title: string;
   url: string;
+  sourceId: string;
   sourceName: string;
   topic: string;
   imageUrl: string | null;

@@ -186,3 +186,59 @@ export async function getSaved(): Promise<Item[]> {
     renderScore: 0,
   }));
 }
+
+/** Everything we hold for one source, newest first. Powers /s/[source]. */
+export async function getBySource(sourceId: string): Promise<Item[]> {
+  const rows = (await sql()`
+    select id, source_id, source_name, topic, title, url, summary, published_at,
+           base_score, hn_url, hn_points, read_at, saved_at, image_url
+      from items
+     where source_id = ${sourceId}
+     order by published_at desc
+     limit 400
+  `) as Row[];
+
+  const now = Date.now();
+  return rows.map((r) => {
+    const publishedAt = new Date(r.published_at);
+    const baseScore = Number(r.base_score);
+    return {
+      id: r.id,
+      sourceId: r.source_id,
+      sourceName: r.source_name,
+      topic: r.topic,
+      title: r.title,
+      url: r.url,
+      summary: r.summary,
+      publishedAt,
+      baseScore,
+      hnUrl: r.hn_url,
+      hnPoints: r.hn_points === null ? null : Number(r.hn_points),
+      readAt: r.read_at ? new Date(r.read_at) : null,
+      savedAt: r.saved_at ? new Date(r.saved_at) : null,
+      imageUrl: r.image_url,
+      renderScore: baseScore * recency((now - publishedAt.getTime()) / 3_600_000, r.topic),
+    };
+  });
+}
+
+/** Every source we currently hold anything for, for the index page. */
+export async function getSources(): Promise<
+  { sourceId: string; sourceName: string; topic: Topic; count: number; newest: string }[]
+> {
+  const rows = (await sql()`
+    select source_id, source_name, topic, count(*)::int as count,
+           max(published_at) as newest
+      from items
+     group by source_id, source_name, topic
+     order by max(published_at) desc
+  `) as { source_id: string; source_name: string; topic: Topic; count: number; newest: string }[];
+
+  return rows.map((r) => ({
+    sourceId: r.source_id,
+    sourceName: r.source_name,
+    topic: r.topic,
+    count: Number(r.count),
+    newest: r.newest,
+  }));
+}
