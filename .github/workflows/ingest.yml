@@ -1,0 +1,100 @@
+name: ingest
+
+on:
+  schedule:
+    # Cron is ALWAYS UTC and ignores the runner timezone. Sri Lanka is UTC+5:30 with no
+    # DST, so this mapping is permanently stable:
+    - cron: '25 0 * * *'    # 05:55 Asia/Colombo
+    - cron: '25 12 * * *'   # 17:55 Asia/Colombo
+    # Deliberately :25 rather than :00 or :30 -- scheduled jobs queue behind GitHub's
+    # global load and those are the worst contention points. Expect 5-30 min of drift
+    # regardless; ingest is idempotent, so a late or missed run costs only freshness.
+  workflow_dispatch:
+
+# A late scheduled run and a manual dispatch must queue, not interleave.
+concurrency:
+  group: ingest
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write          # for the single "Feed health" issue
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15  # a hung fetch must not burn the free minutes quota
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Apply migrations
+        run: npm run migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Fetch feeds
+        run: npm run ingest
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          INGEST_TRIGGER: ${{ github.event_name }}
+          GIT_SHA: ${{ github.sha }}
+          # Set to 1 for the first week to log what the hard-drop rules WOULD delete
+          # instead of deleting it. A dropped item leaves no trace.
+          DROP_DRY_RUN: ${{ vars.DROP_DRY_RUN }}
+
+      - name: Job summary
+        if: always()
+        run: npm run report -- --summary >> "$GITHUB_STEP_SUMMARY"
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Feed health issue
+        if: always()
+        run: npm run report -- --issue
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Refresh the site cache
+        if: success() && vars.SITE_URL != ''
+        run: |
+          curl -fsS -X POST \
+            -H "Authorization: Bearer ${{ secrets.REVALIDATE_SECRET }}" \
+            "${{ vars.SITE_URL }}/api/revalidate"
+
+      # GitHub disables scheduled workflows after 60 days with no REPOSITORY activity, and
+      # this job writes to Neon rather than to git, so the repo would look idle and the
+      # cron would silently stop. A keepalive workflow on its own `schedule` does not solve
+      # this -- it is subject to the same rule and dies alongside what it was protecting.
+      # Only real repository activity resets the clock, so once a week we commit the run
+      # summary. Uses a fine-grained PAT because GITHUB_TOKEN's effect on the inactivity
+      # clock is not dependable.
+      - name: Weekly keepalive commit
+        if: success() && github.event_name == 'schedule'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          KEEPALIVE_TOKEN: ${{ secrets.KEEPALIVE_TOKEN }}
+        run: |
+          if [ -z "$KEEPALIVE_TOKEN" ]; then
+            echo "KEEPALIVE_TOKEN not set; skipping (see README: the 60-day rule)"
+            exit 0
+          fi
+          if [ -f reports/.last-week ] && [ "$(cat reports/.last-week)" = "$(date -u +%G-W%V)" ]; then
+            echo "already committed this ISO week"
+            exit 0
+          fi
+          mkdir -p reports
+          npm run report -- --summary > reports/latest.md
+          date -u +%G-W%V > reports/.last-week
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add reports/latest.md reports/.last-week
+          git -c user.name="github-actions[bot]" commit -m "chore: weekly ingest report [skip ci]" || exit 0
+          git push "https://x-access-token:${KEEPALIVE_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:${GITHUB_REF_NAME}
