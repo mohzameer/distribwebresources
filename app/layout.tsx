@@ -24,6 +24,8 @@ const sans = Inter({
 export const metadata: Metadata = {
   title: 'Daily Engineering News',
   description: 'DevOps, distributed systems, AWS and big-company engineering blogs.',
+  applicationName: 'News',
+  appleWebApp: { capable: true, title: 'News', statusBarStyle: 'default' },
 };
 
 export const viewport: Viewport = {
@@ -31,6 +33,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   // Light only, by request. This also stops iOS tinting form controls dark.
   colorScheme: 'light',
+  // Tints the browser chrome on Android and the iOS status bar when installed.
+  themeColor: '#ff6719',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
