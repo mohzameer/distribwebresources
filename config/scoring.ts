@@ -167,6 +167,11 @@ export const SCORING = {
     'kleppmann': 3,
     'hn-top': 0,
     'lobsters': -1,
+    // Slashdot is broad consumer-tech news rather than engineering writing, so almost
+    // nothing on it matches a topic keyword and it would otherwise sit level with
+    // genuinely on-topic sources. The lane cap and the 24h community half-life do the
+    // rest. Raise this if you find yourself clicking it more than expected.
+    'slashdot': -1,
   } as Record<string, number>,
 
   signals: {
