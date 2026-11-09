@@ -5,11 +5,11 @@ import { RETENTION } from '../config/retention';
 import { toView } from '../src/view';
 
 /**
- * The homepage: a broadsheet front page, then a band per topic.
+ * The broadsheet front page: a lead story, then a band per topic.
  *
- * Shared by / and /unread as two separate ROUTES rather than one route with `?unread=1`,
- * because reading searchParams makes a route dynamic -- which would mean every first visit
- * of the day pays a Neon cold start.
+ * Shared by /front and /unread as two separate ROUTES rather than one route with
+ * `?unread=1`, because reading searchParams makes a route dynamic -- which would mean
+ * every first visit of the day pays a Neon cold start.
  */
 export async function HomeView({ unreadOnly }: { unreadOnly: boolean }) {
   let items;
@@ -83,9 +83,10 @@ export async function HomeView({ unreadOnly }: { unreadOnly: boolean }) {
   return (
     <main>
       <div className="ears">
-        <span>{unreadOnly ? 'Unread only' : 'All articles'}</span>
+        <span>{unreadOnly ? 'Unread only' : 'Front page'}</span>
         <nav>
-          <a href={unreadOnly ? '/' : '/unread'}>{unreadOnly ? 'show all' : 'unread'}</a>
+          <a href="/">recommended</a>
+          <a href={unreadOnly ? '/front' : '/unread'}>{unreadOnly ? 'show all' : 'unread'}</a>
           <a href="/sources">sources</a>
           <a href="/saved">saved</a>
           <a href="/health">health</a>

@@ -15,10 +15,61 @@ Two processes, one database, no server to run.
 | | |
 |---|---|
 | **Ingest** | A TypeScript script run by GitHub Actions at **05:55 and 17:55 Asia/Colombo**. Fetches every feed, normalizes, scores, dedupes, stores, prunes. |
-| **Read** | A Next.js App Router app on Vercel. The home page is a cached render of five topic lanes, so a page load touches Postgres zero times. |
+| **Read** | A Next.js App Router app on Vercel. Every page is a cached render, so a page load touches Postgres zero times. |
 
 Feed definitions and scoring rules are committed TypeScript imported by *both*, so the app
 and the ingester can never disagree about what a lane is.
+
+## Pages
+
+| | |
+|---|---|
+| `/` | **The recommended edition.** Ranked for you, with every row stating why it is there. |
+| `/front` | The broadsheet front page: a lead story then a band per topic, the same for any reader. |
+| `/unread` | The front page with everything you have read removed. |
+| `/t/<topic>`, `/s/<source>` | Topic and per-source archives. |
+| `/saved`, `/sources`, `/health` | Keepsakes, the feed index, and the ingest dashboard. |
+| `/v/<layout>` | Four alternative layouts of the same window: digest, cards, compact, timeline. |
+
+## Recommendations, with no AI in them
+
+`/` is a recommender built entirely out of 1960s information retrieval, running in
+TypeScript over the ~1000 rows the page already loaded. Everything is in
+[`config/recommend.ts`](config/recommend.ts) and [`src/recommend.ts`](src/recommend.ts).
+
+```
+vector      = L2-normalized TF-IDF over title (x2) + summary, IDF taken from the window
+profile     = weighted centroid of what you saved (x3) and opened (x1)   [Rocchio]
+affinity    = cosine(profile, item)
+score       = renderScore x (1 + affinityBoost x affinity x confidence)
+confidence  = min(1, seeds / 25)
+selection   = maximal marginal relevance, lambda 0.72, capped per source and per topic
+```
+
+Four deliberate choices are worth knowing about:
+
+- **The personal signal multiplies the editorial score, it does not replace it.** A
+  mediocre post about your favourite subject still cannot outrank a genuinely excellent
+  one. `base_score` and the per-topic half-lives remain the backbone.
+- **Cold start is scaled, not hidden.** `confidence` is literally "how much feedback
+  exists", so a profile built from three clicks tilts the page by about 10% instead of
+  taking it over. The strip at the top of the page shows the profile's terms and its
+  current weight, so you can always see what the engine thinks it knows.
+- **Maximal marginal relevance, not just a sort.** Five write-ups of the same outage have
+  near-identical vectors, so picking the first suppresses the rest without any rule
+  naming the event.
+- **Every row explains itself.** `Matches kubernetes · ebpf` means the profile matched;
+  `Top of DevOps` means it did not and the row is there on editorial merit. The chip is
+  never a guess.
+
+There are **no implicit negatives** yet, and that is the one real gap. The obvious one --
+"shown on the front page and never clicked" -- needs an impression log, and the homepage
+is served from the ISR cache and touches Postgres zero times, so it has no way to write
+one. The honest fix is for the *ingest* job to snapshot what each edition would have shown
+when it runs; it is connected anyway, and that preserves the zero-query homepage.
+
+Collaborative filtering ("readers like you also read...") is not an option and never will
+be: there is one reader.
 
 ## Commands
 
@@ -109,6 +160,9 @@ renderScore = base_score x 2^(-ageHours / halfLife[topic])               [at ren
 rescore job. Per-topic half-lives (AWS 18h, engineering blogs 144h) are what let one
 mechanism show "today's AWS" and "the best engineering posts of the past fortnight" from
 the same window.
+
+`renderScore` is also what the recommender multiplies its personal affinity into, so
+tuning the weights below moves both pages at once.
 
 Lanes rank over the **whole 30-day window**, never a fixed time box — AWS publishes ~9
 items/day while Netflix publishes 1–3 posts a week, so a "last 24 hours" lane would leave

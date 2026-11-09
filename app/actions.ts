@@ -18,7 +18,9 @@ export async function toggleRead(id: string, read: boolean): Promise<void> {
   await db`
     update item_keys set disposition = ${read ? 'read' : 'none'}
      where item_id = ${id} and disposition <> 'saved'`;
+  // '/' is the recommended edition, so a read is also new training signal there.
   revalidatePath('/');
+  revalidatePath('/front');
 }
 
 export async function toggleSaved(id: string, saved: boolean): Promise<void> {
@@ -29,5 +31,6 @@ export async function toggleSaved(id: string, saved: boolean): Promise<void> {
     update item_keys set disposition = ${saved ? 'saved' : 'none'}
      where item_id = ${id}`;
   revalidatePath('/');
+  revalidatePath('/front');
   revalidatePath('/saved');
 }

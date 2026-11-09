@@ -30,7 +30,7 @@ type NoiseRule = { re: RegExp; w?: number; drop?: true; why: string };
 
 export const SCORING = {
   /** Bump when weights change; stored on each row so you can tell old scores from new. */
-  version: 1,
+  version: 3,
 
   /**
    * Recency half-life in hours, per lane. This is the setting that makes one mechanism
@@ -139,7 +139,10 @@ export const SCORING = {
     { re: /\b(?:we(?:'re| are) hiring|join our team|now hiring|open roles?)\b/i, w: -6, why: 'hiring' },
     { re: /\bAsk HN:/i, w: -4, why: 'ask-hn' },
     { re: /\b(?:partner|marketplace|competency|certification|training course)\b/i, w: -3, why: 'partner' },
-    { re: /\b(?:roundup|week in review|this week in|newsletter #?\d+|weekly digest)\b/i, w: -3, why: 'roundup' },
+    // A numbered issue is the giveaway for a newsletter, and newsletters score well for the
+    // wrong reason: they mention every term in the field, and their masthead is read as
+    // topic. "SRE Weekly Issue #542" earned +6 purely because "SRE" is in the title.
+    { re: /\b(?:roundup|week in review|this week in|weekly digest|(?:newsletter|issue|edition) #?\d+)\b/i, w: -3, why: 'roundup' },
     // Community/event write-ups match "here's what we learned" and were topping the DevOps
     // lane ahead of actual engineering content.
     { re: /\b(?:meetup|conference recap|kubecon|re:invent) recap\b|\b(?:community|sustainability|diversity) (?:month|day|week)\b|\bwe organi[sz]ed\b/i, w: -10, why: 'event-recap' },
@@ -167,6 +170,12 @@ export const SCORING = {
     'kleppmann': 3,
     'hn-top': 0,
     'lobsters': -1,
+    // SRE Weekly is structurally a roundup: every issue is a link list, so its titles carry
+    // the newsletter's masthead rather than a subject. "SRE" in the masthead earns +6 from
+    // the platform-engineering keyword on every single issue, which is why it kept leading
+    // the page. The roundup noise rule cancels half of that; this cancels the rest without
+    // dropping a feed you did choose to subscribe to.
+    'sreweekly': -3,
     // Slashdot is broad consumer-tech news rather than engineering writing, so almost
     // nothing on it matches a topic keyword and it would otherwise sit level with
     // genuinely on-topic sources. The lane cap and the 24h community half-life do the

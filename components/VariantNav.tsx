@@ -20,7 +20,8 @@ export function VariantNav({ active }: { active: string }) {
           {v.label}
         </a>
       ))}
-      <a href="/" className="vn-current">current &rarr;</a>
+      <a href="/front" className="vn-current">front page</a>
+      <a href="/" className="vn-current vn-home">recommended &rarr;</a>
     </div>
   );
 }

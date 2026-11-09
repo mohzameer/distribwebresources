@@ -20,6 +20,8 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   revalidatePath('/');
+  revalidatePath('/front');
+  revalidatePath('/unread');
   revalidatePath('/saved');
   revalidatePath('/health');
   return new Response(null, { status: 204 });

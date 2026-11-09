@@ -538,8 +538,8 @@ table.health td.err { color: var(--accent-deep); font-size: 13px; max-width: 430
   font-family: var(--font-sans-stack); font-size: 10.5px; letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--faint); margin-bottom: 9px;
 }
-.ears nav { display: flex; gap: 15px; }
-.ears nav a { color: var(--muted); text-decoration: none; }
+.ears nav { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 15px; }
+.ears nav a { color: var(--muted); text-decoration: none; white-space: nowrap; }
 .ears nav a:hover { color: var(--accent-deep); }
 
 .masthead { text-align: center; border-bottom: 1px solid var(--rule-heavy); padding-bottom: 9px; }
@@ -717,4 +717,142 @@ figure img {
   }
   .archive .story { grid-template-columns: 92px 1fr; }
   .archive .story .actions { grid-column: 2; flex-direction: row; }
+}
+
+/* ======================= RECOMMENDED EDITION ======================= */
+/* The homepage. Same broadsheet furniture as the front page -- hairlines, uppercase sans
+   micro-labels, serif headlines -- but organized by REASON rather than by topic, with
+   every row carrying the explanation of why it is there. */
+
+.profile-strip {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px;
+  border: 1px solid var(--rule); border-left: 3px solid var(--accent);
+  background: var(--surface); padding: 10px 14px; margin-bottom: 22px;
+}
+.profile-strip .ps-label {
+  font-family: var(--font-sans-stack); font-size: 10px; font-weight: 800;
+  letter-spacing: 0.14em; text-transform: uppercase; color: var(--text);
+}
+.ps-terms { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; flex: 1; }
+.ps-terms li {
+  font-family: var(--font-sans-stack); font-size: 11.5px; font-weight: 600;
+  color: var(--accent-deep); background: var(--accent-soft);
+  border: 1px solid #ffd9c2; border-radius: 2px; padding: 1px 7px;
+}
+.ps-strength {
+  font-family: var(--font-sans-stack); font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--faint); white-space: nowrap;
+}
+/* Cold start is a state worth showing, not hiding: the strip explains itself instead of
+   implying a confidence the engine has not earned. */
+.profile-strip.empty { display: block; border-left-color: var(--rule); }
+.profile-strip.empty .ps-note {
+  font-family: var(--font-serif-stack); font-size: 13.5px; line-height: 1.5;
+  color: var(--text-soft); margin: 4px 0 0;
+}
+
+/* The reason chip. Orange means the profile had something to say; grey means the row is
+   there on editorial merit alone and says so. */
+.why {
+  font-family: var(--font-sans-stack); font-size: 9.5px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+.why-affinity, .why-similar { color: var(--accent-deep); }
+.why-editorial { color: var(--faint); font-weight: 600; }
+.band .story .why { display: block; margin-top: 6px; }
+
+.recs {
+  display: grid; grid-template-columns: 1.45fr 1fr; gap: 0 28px;
+  padding-bottom: 22px; border-bottom: 3px double var(--rule-heavy);
+}
+.recs > * + * { border-left: 1px solid var(--rule); padding-left: 28px; }
+.rec-kickers { display: flex; align-items: baseline; gap: 10px; margin-bottom: 5px; }
+.rec-kickers .kicker { margin-bottom: 0; }
+.recs .lead h2 {
+  font-family: var(--font-serif-stack); font-weight: 700;
+  font-size: clamp(24px, 3vw, 34px); line-height: 1.14; margin: 0;
+  letter-spacing: -0.012em; text-wrap: balance;
+}
+.recs .lead h2 a, .recs .picks h3 a { color: inherit; text-decoration: none; }
+.recs .lead h2 a:hover, .recs .picks h3 a:hover {
+  color: var(--link); text-decoration: underline; text-underline-offset: 2px;
+}
+.recs .lead .standfirst { font-size: 15px; line-height: 1.52; }
+.recs .lead.read { opacity: 0.68; }
+
+.picks { list-style: none; margin: 0; padding: 0; counter-reset: pick; }
+.picks li {
+  display: flex; gap: 11px; align-items: baseline;
+  padding-bottom: 11px; margin-bottom: 11px; border-bottom: 1px solid var(--rule);
+}
+.picks li:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+.picks li.read { opacity: 0.68; }
+.picks .rank {
+  font-family: var(--font-sans-stack); font-size: 11px; font-weight: 800;
+  color: var(--faint); font-variant-numeric: tabular-nums; min-width: 15px;
+  padding-top: 2px;
+}
+.pick-body { flex: 1; min-width: 0; }
+.picks h3 {
+  font-family: var(--font-serif-stack); font-weight: 700; font-size: 16px;
+  line-height: 1.28; margin: 0; letter-spacing: -0.004em; text-wrap: balance;
+}
+.pick-sub {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px;
+  font-family: var(--font-sans-stack); font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--faint); margin: 5px 0 0;
+}
+.pick-sub .src { color: var(--muted); text-decoration: none; }
+.pick-sub .src:hover { color: var(--accent-deep); }
+.pick-sub .dot { opacity: 0.45; }
+.picks .actions { opacity: 0; transition: opacity 0.12s ease; }
+.picks li:hover .actions { opacity: 1; }
+
+/* "Because you saved X" and "Leaving soon": four short columns, no images -- these are
+   suggestions, not the day's news, and they should not outweigh the lead. */
+.neighbours { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0 20px; }
+.neighbours > * + * { border-left: 1px solid var(--rule); padding-left: 20px; }
+/* Six items in a four-column grid wrap, so the column rules have to know where a row
+   starts and the wrapped items need a rule above them instead. */
+.neighbours > :nth-child(4n + 1) { border-left: 0; padding-left: 0; }
+.neighbours > :nth-child(n + 5) { border-top: 1px solid var(--rule); padding-top: 14px; margin-top: 14px; }
+.neighbours .story h3 {
+  font-family: var(--font-serif-stack); font-weight: 700; font-size: 15.5px;
+  line-height: 1.28; margin: 0; letter-spacing: -0.004em; text-wrap: balance;
+}
+.neighbours .story h3 a { color: inherit; text-decoration: none; }
+.neighbours .story h3 a:hover { color: var(--link); text-decoration: underline; text-underline-offset: 2px; }
+.neighbours .story.read { opacity: 0.68; }
+.band-head .seed-link { color: var(--link); text-decoration: none; text-transform: none; letter-spacing: 0; }
+.band-head .seed-link:hover { text-decoration: underline; }
+.variant-nav .vn-home { margin-left: 0; }
+
+@media (max-width: 900px) {
+  .neighbours { grid-template-columns: repeat(2, 1fr); }
+  .neighbours > :nth-child(2n + 1) { border-left: 0; padding-left: 0; }
+  .neighbours > :nth-child(2n) { border-left: 1px solid var(--rule); padding-left: 20px; }
+  .neighbours > :nth-child(n + 3) {
+    border-top: 1px solid var(--rule); padding-top: 14px; margin-top: 14px;
+  }
+}
+@media (max-width: 620px) {
+  /* The chip is a full sentence of its own at this width -- truncating it to
+     "TOP OF DEVOPS & CLOUD NAT..." defeats the point of explaining the row. */
+  .rec-kickers { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .rec-kickers .why { white-space: normal; }
+  .band-head { flex-wrap: wrap; }
+  .band-head .count { flex-basis: 100%; }
+  .recs { grid-template-columns: 1fr; }
+  .recs > * + * {
+    border-left: 0; padding-left: 0;
+    border-top: 1px solid var(--rule); padding-top: 17px; margin-top: 17px;
+  }
+  .neighbours { grid-template-columns: 1fr; }
+  .neighbours > *, .neighbours > :nth-child(2n) { border-left: 0; padding-left: 0; }
+  .neighbours > * + * {
+    border-top: 1px solid var(--rule); padding-top: 14px; margin-top: 14px;
+  }
+  .picks .actions { opacity: 1; }
+  .ps-strength { white-space: normal; }
 }
