@@ -4,9 +4,13 @@ import { decode } from 'html-entities';
  * Query params that identify a campaign or referrer rather than the document. Dropping
  * them is what lets the same article arrive from a blog, a Medium mirror and a Hacker News
  * submission and still collapse to one `url_key`.
+ *
+ * Two kinds of entry: families matched by PREFIX (`utm_source`, `mc_cid`, `at_medium`...),
+ * and single params matched EXACTLY. Keep them apart -- inside one `^(?:...)$` group a
+ * prefix like `utm_` only ever matched a param literally named "utm_".
  */
 const TRACKING_PARAM =
-  /^(?:utm_|mc_|mkt_tok|fbclid|gclid|igshid|_hsenc|_hsmi|__s|at_|ref|referer|referrer|source|si|gi|cmp|campaign)$/i;
+  /^(?:(?:utm|mc|at)_.*|mkt_tok|fbclid|gclid|igshid|_hsenc|_hsmi|__s|ref|referer|referrer|source|si|gi|cmp|campaign)$/i;
 
 /**
  * Canonicalize a URL for dedupe. Deliberately conservative: we never touch the path except
