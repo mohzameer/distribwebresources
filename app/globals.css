@@ -856,3 +856,15 @@ figure img {
   .picks .actions { opacity: 1; }
   .ps-strength { white-space: normal; }
 }
+
+/* ---------- /privacy ---------- */
+.privacy { max-width: 680px; margin: 0 auto; }
+.privacy h2 {
+  font-family: var(--font-serif-stack);
+  font-size: 21px;
+  margin: 34px 0 8px;
+}
+.privacy p,
+.privacy li { color: var(--text-soft); }
+.privacy ul { padding-left: 1.2em; }
+.privacy li { margin: 6px 0; }

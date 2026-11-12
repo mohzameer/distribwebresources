@@ -84,6 +84,7 @@ npm run rescore -- --apply   # write those new scores
 npm run report -- --summary  # the markdown run report
 npm run migrate              # apply pending migrations
 npm run ext:build            # build the notes Chrome extension into extension/dist
+npm run ext:zip              # ...and package it for the Chrome Web Store
 ```
 
 `--dry-run` needs no `DATABASE_URL`, which makes it the fast way to confirm all feeds still
@@ -117,6 +118,11 @@ Setup, once:
 4. The extension's options page opens on first use: enter the site URL
    (`http://localhost:3000` or your domain) and the token, then **Save** (Chrome asks for
    access to that one site).
+
+To install it without Developer mode, publish it **unlisted** on the Chrome Web Store:
+`npm run ext:zip` packages it, and [`extension/STORE.md`](extension/STORE.md) has the
+listing text, permission justifications and privacy answers. The policy it links to is
+`/privacy`, which is public.
 
 `npm run ext:watch` rebuilds on change; press reload on the extension card afterwards. The
 editor is shared: `components/notes/` is bundled by Next for `/noteorg` and by esbuild

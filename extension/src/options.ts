@@ -55,6 +55,6 @@ document.getElementById('test')!.addEventListener('click', async () => {
 });
 
 void getSettings().then((s) => {
-  siteInput.value = s?.siteUrl ?? 'http://localhost:3000';
+  siteInput.value = s?.siteUrl ?? 'https://xnews.mohzameer.com';
   tokenInput.value = s?.token ?? '';
 });

@@ -3,16 +3,47 @@
   "name": "News Notes",
   "short_name": "Notes",
   "version": "1.0.0",
-  "description": "Highlights and notes on articles opened from Daily Engineering News.",
+  "description": "Highlight passages and write notes on articles you open from Daily Engineering News.",
   "minimum_chrome_version": "120",
-  "permissions": ["sidePanel", "contextMenus", "webNavigation", "tabs", "storage", "scripting", "activeTab"],
-  "optional_host_permissions": ["http://localhost/*", "http://127.0.0.1/*", "https://*/*"],
-  "background": { "service_worker": "background.js", "type": "module" },
-  "side_panel": { "default_path": "sidepanel.html" },
-  "options_ui": { "page": "options.html", "open_in_tab": true },
+  "permissions": [
+    "sidePanel",
+    "contextMenus",
+    "webNavigation",
+    "tabs",
+    "storage",
+    "scripting",
+    "activeTab"
+  ],
+  "optional_host_permissions": [
+    "https://xnews.mohzameer.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
   "action": {
     "default_title": "Notes",
-    "default_icon": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" }
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png",
+      "48": "icons/48.png",
+      "128": "icons/128.png"
+    }
   },
-  "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" }
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "homepage_url": "https://xnews.mohzameer.com/noteorg"
 }

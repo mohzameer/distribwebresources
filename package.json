@@ -14,7 +14,8 @@
     "rescore": "tsx --env-file-if-exists=.env.local scripts/rescore.ts",
     "report": "tsx --env-file-if-exists=.env.local scripts/report.ts",
     "ext:build": "tsx scripts/build-extension.ts",
-    "ext:watch": "tsx scripts/build-extension.ts --watch"
+    "ext:watch": "tsx scripts/build-extension.ts --watch",
+    "ext:zip": "tsx scripts/build-extension.ts --zip"
   },
   "dependencies": {
     "@neondatabase/serverless": "1.2.0",
