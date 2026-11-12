@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>News Notes — settings</title>
+    <style>
+      body { font: 15px/1.55 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; color: #1a1a1a; background: #fff; margin: 0; }
+      main { max-width: 520px; margin: 8vh auto; padding: 0 20px; }
+      h1 { font-family: Georgia, serif; font-size: 26px; margin: 0 0 6px; }
+      p { color: #6b6b6b; margin: 0 0 22px; }
+      label { display: block; font-weight: 600; font-size: 13px; margin: 16px 0 6px; }
+      input { width: 100%; font: inherit; padding: 9px 12px; border: 1px solid #e6e4e0; border-radius: 8px; box-sizing: border-box; }
+      input:focus { outline: none; border-color: #f2c7ad; box-shadow: 0 0 0 3px #fff4ed; }
+      small { display: block; color: #8f8f8f; margin-top: 5px; }
+      .row { display: flex; gap: 10px; margin-top: 22px; align-items: center; }
+      button { font: inherit; font-weight: 600; font-size: 14px; border-radius: 999px; padding: 8px 18px; border: 1px solid #e6e4e0; background: #fff; cursor: pointer; }
+      button.primary { background: #ff6719; border-color: #ff6719; color: #fff; }
+      #status { font-size: 13.5px; }
+      .ok { color: #067647; } .bad { color: #b42318; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>News Notes</h1>
+      <p>Point the extension at your news site. The token is the <code>NOTES_API_TOKEN</code> set on the site.</p>
+      <form id="form">
+        <label for="siteUrl">Site URL</label>
+        <input id="siteUrl" type="url" placeholder="http://localhost:3000" required />
+        <small>Where the news site runs, e.g. http://localhost:3000 or your custom domain.</small>
+        <label for="token">API token</label>
+        <input id="token" type="password" autocomplete="off" required />
+        <div class="row">
+          <button class="primary" type="submit">Save</button>
+          <button id="test" type="button">Test connection</button>
+          <span id="status"></span>
+        </div>
+      </form>
+    </main>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

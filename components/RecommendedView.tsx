@@ -91,6 +91,7 @@ export async function RecommendedView() {
           <a href="/unread">unread</a>
           <a href="/sources">sources</a>
           <a href="/saved">saved</a>
+          <a href="/noteorg">notes</a>
           <a href="/health">health</a>
           <a href="/v/compact">compact</a>
         </nav>

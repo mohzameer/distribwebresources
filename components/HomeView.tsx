@@ -89,6 +89,7 @@ export async function HomeView({ unreadOnly }: { unreadOnly: boolean }) {
           <a href={unreadOnly ? '/front' : '/unread'}>{unreadOnly ? 'show all' : 'unread'}</a>
           <a href="/sources">sources</a>
           <a href="/saved">saved</a>
+          <a href="/noteorg">notes</a>
           <a href="/health">health</a>
           <a href="/v/compact">compact</a>
         </nav>

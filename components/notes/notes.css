@@ -1,0 +1,186 @@
+/*
+ * Notes: shared by /noteorg and the Chrome extension's side panel (bundled there by
+ * esbuild), so a note looks the same wherever you write or read it. Uses the site's
+ * tokens; the extension defines the same custom properties itself.
+ */
+
+/* ---------- prose: the note body, editable or rendered ---------- */
+.note-prose {
+  font-family: var(--font-serif-stack);
+  font-size: 18px;
+  line-height: 1.7;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.note-prose > :first-child { margin-top: 0; }
+.note-prose > :last-child { margin-bottom: 0; }
+.note-prose p { margin: 0 0 0.85em; }
+.note-prose h2,
+.note-prose h3 {
+  font-family: var(--font-serif-stack);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  margin: 1.3em 0 0.45em;
+}
+.note-prose h2 { font-size: 1.4em; }
+.note-prose h3 { font-size: 1.15em; }
+.note-prose a { color: var(--accent-deep); text-decoration: underline; text-underline-offset: 2px; }
+.note-prose blockquote {
+  margin: 1em 0;
+  padding: 0 0 0 1em;
+  border-left: 3px solid var(--accent);
+  color: var(--text-soft);
+  font-style: italic;
+}
+.note-prose ul,
+.note-prose ol { margin: 0 0 0.85em; padding-left: 1.4em; }
+.note-prose li { margin: 0.2em 0; }
+.note-prose li > p { margin: 0; }
+.note-prose code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.82em;
+  background: var(--surface-alt);
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+.note-prose pre {
+  background: #1f1f1f;
+  color: #f3f3f3;
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  overflow-x: auto;
+  font-size: 0.8em;
+  line-height: 1.55;
+}
+.note-prose pre code { background: none; border: 0; padding: 0; color: inherit; font-size: inherit; }
+.note-prose hr { border: 0; border-top: 1px solid var(--border); margin: 1.6em 0; }
+
+/* ---------- editor frame ---------- */
+.note-editor {
+  position: relative;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.note-editor:focus-within {
+  border-color: #f2c7ad;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.note-editable {
+  min-height: 160px;
+  padding: 18px 20px 8px;
+  outline: none;
+}
+.note-editable p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--faint);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.note-editor-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px 10px 20px;
+  font-family: var(--font-sans-stack);
+  font-size: 12.5px;
+  color: var(--faint);
+}
+.note-editor-err { color: #b42318; }
+.note-editor-actions { margin-left: auto; display: flex; gap: 8px; }
+
+/* ---------- buttons ---------- */
+.note-btn {
+  font-family: var(--font-sans-stack);
+  font-size: 13.5px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 7px 16px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  line-height: 1.2;
+  text-decoration: none;
+}
+.note-btn:disabled { opacity: 0.45; cursor: default; }
+.note-btn.primary { background: var(--accent); color: #fff; }
+.note-btn.primary:not(:disabled):hover { background: var(--accent-deep); }
+.note-btn.ghost { background: transparent; color: var(--muted); border-color: var(--border); }
+.note-btn.ghost:not(:disabled):hover { color: var(--text); border-color: var(--rule); }
+.note-btn.quiet { background: none; border: 0; padding: 4px 6px; color: var(--faint); font-weight: 500; }
+.note-btn.quiet:hover { color: var(--accent-deep); }
+.note-btn.danger:hover { color: #b42318; }
+
+/* ---------- floating menus ---------- */
+.note-menu {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 4px;
+  background: #1a1a1a;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  font-family: var(--font-sans-stack);
+  z-index: 20;
+}
+.note-menu-block { background: var(--bg); border: 1px solid var(--border); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08); }
+.note-menu-btn {
+  min-width: 30px;
+  height: 28px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: #eee;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.note-menu-btn.serif { font-family: var(--font-serif-stack); font-size: 18px; line-height: 1; }
+.note-menu-btn:hover { background: rgba(255, 255, 255, 0.12); }
+.note-menu-btn.on { color: var(--accent); }
+.note-menu-block .note-menu-btn { color: var(--muted); }
+.note-menu-block .note-menu-btn:hover { background: var(--surface-alt); color: var(--text); }
+.note-menu-sep { width: 1px; height: 18px; background: rgba(255, 255, 255, 0.2); margin: 0 4px; }
+
+/* ---------- entries: highlights and notes in a list ---------- */
+.note-entries { display: flex; flex-direction: column; gap: 14px; }
+.note-entry { position: relative; }
+.note-highlight {
+  margin: 0;
+  padding: 2px 0 2px 16px;
+  border-left: 3px solid var(--accent);
+  font-family: var(--font-serif-stack);
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--text-soft);
+  white-space: pre-line;
+}
+.note-card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  padding: 16px 20px;
+}
+.note-entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-family: var(--font-sans-stack);
+  font-size: 12px;
+  color: var(--faint);
+}
+.note-kind {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  font-size: 10.5px;
+  color: var(--accent-deep);
+  margin-right: 4px;
+}

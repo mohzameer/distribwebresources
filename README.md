@@ -30,6 +30,7 @@ and the ingester can never disagree about what a lane is.
 | `/t/<topic>`, `/s/<source>` | Topic and per-source archives. |
 | `/saved`, `/sources`, `/health` | Keepsakes, the feed index, and the ingest dashboard. |
 | `/v/<layout>` | Four alternative layouts of the same window: digest, cards, compact, timeline. |
+| `/noteorg` | Your highlights and notes, per article, with search. Written from the Chrome extension below. |
 
 ## Recommendations, with no AI in them
 
@@ -82,10 +83,44 @@ npm run rescore              # preview what edited weights would do to stored it
 npm run rescore -- --apply   # write those new scores
 npm run report -- --summary  # the markdown run report
 npm run migrate              # apply pending migrations
+npm run ext:build            # build the notes Chrome extension into extension/dist
 ```
 
 `--dry-run` needs no `DATABASE_URL`, which makes it the fast way to confirm all feeds still
 parse.
+
+## Notes: the Chrome extension and `/noteorg`
+
+A personal knowledge manager on top of the reader. Open an article **from the site**, then:
+
+- **Right-click a selected passage → Add to page notes** to save it as a highlight.
+- **Click the toolbar icon** to open the side panel: the article's highlights and notes,
+  and **+ Add note** for a Substack-style editor (select text for formatting, `##`, `>`,
+  `-` and `**bold**` markdown shortcuts, ⌘↵ to save). Drafts survive closing the panel.
+- **`/noteorg`** lists every article you have notes on, with search; each page lets you
+  edit, delete and add notes from the web too.
+
+Only tabs opened from the site count (the extension watches `webNavigation`, since the
+site's links are `noopener noreferrer`), plus pages that already have notes. Each note
+page is tied to its `items` row with source and topic denormalized onto it, and every
+entry stores plain text beside the rich document, so the notes can feed analytics later.
+Taking a note **stars the article**, so it outlives the 30-day prune.
+
+Setup, once:
+
+1. Set `NOTES_API_TOKEN` (`openssl rand -base64 32`) in `.env.local` and on Vercel. The
+   extension calls `/api/notes/*` with it as a bearer token; those routes sit outside the
+   cookie gate.
+2. `npm run migrate` (adds `note_pages` and `note_entries`, granted to the `web` role).
+3. `npm run ext:build`, then in Chrome: `chrome://extensions` → **Developer mode** →
+   **Load unpacked** → `extension/dist`. It is never published.
+4. The extension's options page opens on first use: enter the site URL
+   (`http://localhost:3000` or your domain) and the token, then **Save** (Chrome asks for
+   access to that one site).
+
+`npm run ext:watch` rebuilds on change; press reload on the extension card afterwards. The
+editor is shared: `components/notes/` is bundled by Next for `/noteorg` and by esbuild
+for the side panel.
 
 ## Retention
 

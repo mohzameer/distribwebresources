@@ -1,0 +1,77 @@
+/* The site's palette, restated: the extension has no access to app/globals.css. */
+:root {
+  color-scheme: light;
+  --bg: #ffffff;
+  --surface: #fffdfa;
+  --surface-alt: #faf9f7;
+  --border: #e6e4e0;
+  --border-soft: #f0eeea;
+  --text: #1a1a1a;
+  --text-soft: #3d3d3d;
+  --muted: #6b6b6b;
+  --faint: #8f8f8f;
+  --rule: #c8c6c0;
+  --accent: #ff6719;
+  --accent-deep: #d94f0c;
+  --accent-soft: #fff4ed;
+  --radius: 6px;
+  --font-serif-stack: 'Libre Caslon Text', Charter, Georgia, 'Times New Roman', serif;
+  --font-sans-stack: 'Libre Franklin', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body {
+  font-family: var(--font-sans-stack);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent-deep); }
+
+.panel { padding: 18px 16px 40px; }
+.panel-pad { padding: 22px 18px; }
+.panel-muted { color: var(--faint); }
+.panel-hint { font-size: 13px; margin: 0 0 4px; }
+
+.panel-head { padding-bottom: 14px; margin-bottom: 18px; border-bottom: 1px solid var(--border); }
+.panel-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-deep);
+}
+.panel-title {
+  font-family: var(--font-serif-stack);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  margin: 4px 0 6px;
+  overflow-wrap: anywhere;
+}
+.panel-links { font-size: 12.5px; color: var(--faint); }
+.panel-links a { text-decoration: none; font-weight: 600; }
+
+.panel-error {
+  background: #fef3f2;
+  color: #b42318;
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.panel-compose { margin-top: 20px; }
+.panel-add { width: 100%; padding: 10px 16px; }
+
+.panel-empty p { color: var(--muted); }
+.panel-empty .note-btn { text-decoration: none; display: inline-block; }
+
+/* Narrower than the site: tighten the shared prose. */
+.panel .note-prose { font-size: 16px; }
+.panel .note-highlight { font-size: 15.5px; }
+.panel .note-card { padding: 12px 14px; }
+.panel .note-editable { padding: 14px 14px 6px; min-height: 140px; }
+.panel .note-editor-foot { padding-left: 14px; }

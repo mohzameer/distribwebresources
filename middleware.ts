@@ -22,11 +22,11 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // /api/revalidate carries its own bearer token, and /login is the way back in, so
-  // neither may sit behind the cookie check.
+  // /api/revalidate and /api/notes (the Chrome extension) carry their own bearer tokens,
+  // and /login is the way back in, so none of them may sit behind the cookie check.
   // Icons and the manifest must stay public: iOS fetches them without cookies, and a
   // 307 to /login would be saved as the home-screen icon instead of the real image.
   matcher: [
-    '/((?!api/revalidate|login|icon.svg|apple-icon|manifest.webmanifest|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api/revalidate|api/notes|login|icon.svg|apple-icon|manifest.webmanifest|_next/static|_next/image|favicon.ico).*)',
   ],
 };

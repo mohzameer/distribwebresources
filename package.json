@@ -12,11 +12,20 @@
     "typecheck": "tsc --noEmit",
     "sample": "tsx --env-file-if-exists=.env.local scripts/sample.ts",
     "rescore": "tsx --env-file-if-exists=.env.local scripts/rescore.ts",
-    "report": "tsx --env-file-if-exists=.env.local scripts/report.ts"
+    "report": "tsx --env-file-if-exists=.env.local scripts/report.ts",
+    "ext:build": "tsx scripts/build-extension.ts",
+    "ext:watch": "tsx scripts/build-extension.ts --watch"
   },
   "dependencies": {
     "@neondatabase/serverless": "1.2.0",
     "@rowanmanning/feed-parser": "2.1.5",
+    "@tiptap/core": "3.31.4",
+    "@tiptap/extension-bubble-menu": "3.31.4",
+    "@tiptap/extensions": "3.31.4",
+    "@tiptap/pm": "3.31.4",
+    "@tiptap/react": "3.31.4",
+    "@tiptap/starter-kit": "3.31.4",
+    "@tiptap/static-renderer": "3.31.4",
     "html-entities": "2.6.0",
     "next": "16.4.5",
     "p-limit": "7.3.3",
@@ -26,10 +35,12 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@types/chrome": "0.3.5",
     "@types/node": "26.6.6",
     "@types/pg": "8.23.1",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "esbuild": "0.28.2",
     "tsx": "4.23.15",
     "typescript": "5.9.3"
   }
