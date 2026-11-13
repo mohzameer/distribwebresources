@@ -51,6 +51,7 @@ export async function RecommendedView() {
   const data: ForYouData = {
     lead: recs.lead ? toRec(recs.lead, now) : null,
     picks: recs.picks.map((p) => toRec(p, now)),
+    bench: recs.bench.map((p) => toRec(p, now)),
     because: recs.because.map((block) => ({
       seedTitle: block.seed.title,
       seedUrl: block.seed.url,
@@ -65,6 +66,12 @@ export async function RecommendedView() {
         RETENTION.itemTtlDays - (now - i.publishedAt.getTime()) / 86_400_000,
       ),
     })),
+    rotation: {
+      hours: recs.rotation.hours,
+      nextLabel: recs.rotation.nextAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+      news: RECOMMEND.news.slots,
+      explore: RECOMMEND.explore.slots,
+    },
     profile: {
       terms: recs.profile.terms,
       seedCount: recs.profile.seedCount,

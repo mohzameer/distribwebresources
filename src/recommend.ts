@@ -8,8 +8,13 @@
  *
  * Everything here is deterministic and inspectable, which is what lets every row on the
  * page say why it is there.
+ *
+ * Merit ranking is not the whole page, though. Two seats go to the aggregator lane and
+ * two to whatever the profile has the least vocabulary for, both rotating every twelve
+ * hours, because a recommender trained only on what it chose to show you is a closed
+ * loop. The reserved-seat block in `config/recommend.ts` is the argument for why.
  */
-import { SCORING, TOPIC_LABELS, type Topic } from '../config/scoring';
+import { SCORING, TOPICS, TOPIC_LABELS, type Topic } from '../config/scoring';
 import { RECOMMEND } from '../config/recommend';
 import { RETENTION } from '../config/retention';
 import type { Item } from './lanes';
@@ -165,6 +170,44 @@ function sharedTerms(a: Vector, b: Vector, corpus: Corpus, count: number): strin
   return scored.slice(0, count).map(([term]) => corpus.surface.get(term) ?? term);
 }
 
+/**
+ * How much of an article the profile has no vocabulary for at all: the share of its
+ * squared vector weight sitting on terms the centroid has never seen. Vectors are unit
+ * length, so this is 0 when every term is familiar and 1 when none of them is.
+ *
+ * This is the exploration signal, and it exists because cosine affinity cannot do the
+ * job. Over a thousand-item window the affinities run 0.00 to 0.13 with a median of
+ * 0.02, so "low affinity" is true of almost everything and selects nothing in
+ * particular. Novelty over the same window runs 0.42 to 1.00.
+ */
+export function novelty(vector: Vector, profile: Vector): number {
+  if (profile.size === 0) return 1;
+  let familiar = 0;
+  for (const [term, weight] of vector) if (profile.has(term)) familiar += weight * weight;
+  return Math.max(0, Math.min(1, 1 - familiar));
+}
+
+/** Which rotation window a timestamp falls in. */
+function epochOf(now: number, hours: number): number {
+  return Math.floor(now / (hours * 3_600_000));
+}
+
+/**
+ * A deterministic sliding window into a pool: `count` items, advancing by `count` each
+ * epoch and wrapping round. No randomness anywhere, so two renders inside the same
+ * window are byte-identical, and over enough epochs the whole pool has been past the
+ * reader exactly once per cycle.
+ */
+function rotate<T>(pool: T[], count: number, epoch: number): T[] {
+  if (pool.length === 0) return [];
+  const out: T[] = [];
+  for (let i = 0; i < Math.min(count, pool.length); i++) {
+    const item = pool[(epoch * count + i) % pool.length];
+    if (item !== undefined) out.push(item);
+  }
+  return out;
+}
+
 export type Profile = {
   vector: Vector;
   seedCount: number;
@@ -231,17 +274,36 @@ export function buildProfile(corpus: Corpus, saved: Item[], read: Item[]): Profi
 export type Reason =
   | { kind: 'affinity'; terms: string[] }
   | { kind: 'similar'; terms: string[] }
-  | { kind: 'editorial'; label: string };
+  | { kind: 'editorial'; label: string }
+  /** Here on the news quota, not on merit. */
+  | { kind: 'news'; label: string }
+  /** Here because the profile knows nothing about it. */
+  | { kind: 'explore'; label: string };
 
 export type Pick = { item: Item; score: number; affinity: number; reason: Reason };
+
+/** An item with its merit score, before a reason is attached. */
+type Entry = { item: Item; score: number; affinity: number };
+
+/** An explore candidate, carrying the novelty its chip quotes. */
+type Seat = { item: Item; novelty: number };
 
 export type Recommendations = {
   lead: Pick | null;
   picks: Pick[];
+  /**
+   * Spare picks the page ships but does not show, so the rotate button can replace a row
+   * client-side. Chosen by the same diversity pass as the visible ones, with everything
+   * already on the page treated as taken, so a spare is never a near-duplicate of a row
+   * it might be swapped in beside.
+   */
+  bench: Pick[];
   because: { seed: Item; items: Pick[] }[];
   leavingSoon: Item[];
   profile: Profile;
   candidates: number;
+  /** When the reserved seats next move on, so the page can say so out loud. */
+  rotation: { hours: number; nextAt: Date };
 };
 
 /**
@@ -267,17 +329,22 @@ function editorialReason(item: Item): Reason {
  * items have near-identical vectors, so the first one chosen suppresses the rest without
  * any rule naming the event.
  */
-function selectDiverse(
-  ranked: { item: Item; score: number; affinity: number }[],
-  corpus: Corpus,
-  count: number,
-): { item: Item; score: number; affinity: number }[] {
+function selectDiverse(ranked: Entry[], corpus: Corpus, count: number, reserved: Entry[] = []): Entry[] {
   const pool = ranked.slice(0, RECOMMEND.candidatePool);
   const best = pool[0]?.score ?? 1;
-  const chosen: { item: Item; score: number; affinity: number }[] = [];
-  const taken = new Set<string>();
+  const chosen: Entry[] = [];
+  const taken = new Set(reserved.map((entry) => entry.item.id));
   const perSource = new Map<string, number>();
   const perTopic = new Map<string, number>();
+
+  // The reserved seats are already on the page, so they count against the caps and they
+  // count as competition for the novelty term. Skip this and a news seat plus four
+  // ranked community picks is five items from one lane.
+  const against: Entry[] = [...reserved];
+  for (const entry of reserved) {
+    perSource.set(entry.item.sourceId, (perSource.get(entry.item.sourceId) ?? 0) + 1);
+    perTopic.set(entry.item.topic, (perTopic.get(entry.item.topic) ?? 0) + 1);
+  }
 
   while (chosen.length < count) {
     let winner: (typeof pool)[number] | null = null;
@@ -291,7 +358,7 @@ function selectDiverse(
       const vector = corpus.vectors.get(candidate.item.id);
       let closest = 0;
       if (vector) {
-        for (const picked of chosen) {
+        for (const picked of against) {
           const other = corpus.vectors.get(picked.item.id);
           if (!other) continue;
           const similarity = cosine(vector, other);
@@ -311,10 +378,156 @@ function selectDiverse(
     taken.add(winner.item.id);
     perSource.set(winner.item.sourceId, (perSource.get(winner.item.sourceId) ?? 0) + 1);
     perTopic.set(winner.item.topic, (perTopic.get(winner.item.topic) ?? 0) + 1);
+    against.push(winner);
     chosen.push(winner);
   }
 
   return chosen;
+}
+
+/**
+ * Guarantee every lane a seat. The caps stop one lane dominating; they do nothing to stop
+ * a lane vanishing, and a recommender quietly dropping a whole subject is the first
+ * visible symptom of the loop the reserved seats exist to break.
+ *
+ * The weakest pick from the most over-represented lane gives up its slot. The lead is
+ * never touched: it is the page's editorial statement and it earned its place.
+ */
+function enforceTopicFloor(chosen: Entry[], reserved: Entry[], pool: Entry[]): Entry[] {
+  const out = [...chosen];
+  const counts = new Map<string, number>();
+  for (const entry of [...reserved, ...out]) {
+    counts.set(entry.item.topic, (counts.get(entry.item.topic) ?? 0) + 1);
+  }
+
+  for (const topic of TOPICS) {
+    if ((counts.get(topic) ?? 0) >= RECOMMEND.minPerTopic) continue;
+    const replacement = pool.find(
+      (entry) => entry.item.topic === topic && !out.some((picked) => picked.item.id === entry.item.id),
+    );
+    if (!replacement) continue;
+
+    // Walking backwards finds the weakest pick first, since `out` is score-ordered.
+    let loser: Entry | undefined;
+    let victim = -1;
+    let victimCount: number = RECOMMEND.minPerTopic;
+    for (let i = out.length - 1; i >= 1; i--) {
+      const entry = out[i];
+      if (!entry) continue;
+      const count = counts.get(entry.item.topic) ?? 0;
+      if (count > victimCount) {
+        victimCount = count;
+        victim = i;
+        loser = entry;
+      }
+    }
+    if (victim < 0 || !loser) continue;
+
+    counts.set(loser.item.topic, (counts.get(loser.item.topic) ?? 0) - 1);
+    out[victim] = replacement;
+    counts.set(topic, (counts.get(topic) ?? 0) + 1);
+  }
+
+  return out;
+}
+
+/**
+ * Is this item effectively a repeat of one already seated? The reserved seats bypass the
+ * ranking, so they bypass MMR with it, and two aggregators carrying the same story is the
+ * normal case rather than an edge one.
+ */
+function tooSimilar(item: Item, chosen: Item[], corpus: Corpus): boolean {
+  const vector = corpus.vectors.get(item.id);
+  if (!vector) return false;
+  for (const other of chosen) {
+    const otherVector = corpus.vectors.get(other.id);
+    if (otherVector && cosine(vector, otherVector) >= RECOMMEND.maxSeatSimilarity) return true;
+  }
+  return false;
+}
+
+/**
+ * The news quota. Which SOURCES hold the seats rotates, rather than which items: taking
+ * the two best community items would mean Hacker News and Lobsters every single time,
+ * because Slashdot's ceiling sits below their floor. Rotating the sources puts each of
+ * the three on the page two epochs in every three.
+ */
+function pickNews(candidates: Item[], corpus: Corpus, epoch: number): Item[] {
+  const bySource = new Map<string, Item[]>();
+  for (const item of candidates) {
+    if (item.topic !== RECOMMEND.news.topic) continue;
+    const list = bySource.get(item.sourceId);
+    if (list) list.push(item);
+    else bySource.set(item.sourceId, [item]);
+  }
+
+  // Sorted so the rotation is a function of the clock alone, never of row order.
+  const sources = [...bySource.keys()].sort();
+  const picked: Item[] = [];
+  for (const source of rotate(sources, RECOMMEND.news.slots, epoch)) {
+    const best = (bySource.get(source) ?? [])
+      .slice()
+      .sort((a, b) => b.renderScore - a.renderScore)
+      .slice(0, RECOMMEND.news.perSourcePool);
+    if (best.length === 0) continue;
+    // Rotate within the source as well, so a seat shows that source's news rather than
+    // its one highest-scoring story over and over. Walking forward from the rotated
+    // offset also gives somewhere to go when the first choice duplicates another seat.
+    const order = best.map((_, k) => best[(epoch + k) % best.length]!);
+    const item = order.find((candidate) => !tooSimilar(candidate, picked, corpus)) ?? order[0]!;
+    picked.push(item);
+  }
+  return picked;
+}
+
+/**
+ * The experimentation window: the strongest items the profile has no vocabulary for,
+ * rotated so the reader eventually sees the whole pool rather than the same two articles
+ * until they age out.
+ */
+function pickExplore(
+  candidates: Item[],
+  corpus: Corpus,
+  profile: Profile,
+  seated: Item[],
+  epoch: number,
+): Seat[] {
+  const exclude = new Set(seated.map((item) => item.id));
+  let bestScore = 0;
+  for (const item of candidates) if (item.renderScore > bestScore) bestScore = item.renderScore;
+  const floor = bestScore * RECOMMEND.explore.minScoreRatio;
+
+  const pool = candidates
+    .filter(
+      (item) =>
+        !exclude.has(item.id) &&
+        item.renderScore >= floor &&
+        // The aggregator lane has its own quota two seats up. Letting it into this pool
+        // as well put four community items on a twelve-item page in testing.
+        item.topic !== RECOMMEND.news.topic,
+    )
+    .map((item) => {
+      const vector = corpus.vectors.get(item.id);
+      return { item, novelty: vector ? novelty(vector, profile.vector) : 1 };
+    })
+    .filter((seat) => seat.novelty >= RECOMMEND.explore.minNovelty)
+    // Ranked by editorial score, GATED on novelty -- see the note in the config. An
+    // unfamiliar subject still has to arrive attached to an article worth reading.
+    .sort((a, b) => b.item.renderScore - a.item.renderScore)
+    .slice(0, RECOMMEND.explore.pool);
+  if (pool.length === 0) return [];
+
+  // Walk the pool from this epoch's offset, skipping anything that repeats a seat
+  // already taken -- including the news seats, which were drawn first.
+  const order = pool.map((_, k) => pool[(epoch * RECOMMEND.explore.slots + k) % pool.length]!);
+  const seats: Seat[] = [];
+  for (const seat of order) {
+    if (seats.length >= RECOMMEND.explore.slots) break;
+    const against = [...seated, ...seats.map((taken) => taken.item)];
+    if (tooSimilar(seat.item, against, corpus)) continue;
+    seats.push(seat);
+  }
+  return seats;
 }
 
 /**
@@ -333,7 +546,17 @@ export function recommend(window: Item[], saved: Item[], now = Date.now()): Reco
   const seedIds = new Set(profile.vector.size > 0 ? saved.concat(read).map((i) => i.id) : []);
   const candidates = window.filter((i) => i.readAt === null && i.savedAt === null && !seedIds.has(i.id));
 
+  const epoch = epochOf(now, RECOMMEND.rotateHours);
+
+  // Reserved seats are drawn FIRST, so merit ranking fills what is left rather than the
+  // other way round. A quota that only applies when the ranking happens to leave room is
+  // not a quota, and it is the ranking that the feedback loop runs through.
+  const newsSeats = pickNews(candidates, corpus, epoch);
+  const exploreSeats = pickExplore(candidates, corpus, profile, newsSeats, epoch);
+  const held = new Set([...newsSeats, ...exploreSeats.map((seat) => seat.item)].map((item) => item.id));
+
   const scored = candidates
+    .filter((item) => !held.has(item.id))
     .map((item) => {
       const vector = corpus.vectors.get(item.id);
       const affinity = vector && profile.vector.size > 0 ? cosine(vector, profile.vector) : 0;
@@ -342,9 +565,7 @@ export function recommend(window: Item[], saved: Item[], now = Date.now()): Reco
     })
     .sort((a, b) => b.score - a.score);
 
-  const chosen = selectDiverse(scored, corpus, RECOMMEND.picks + 1);
-
-  const explain = (entry: { item: Item; score: number; affinity: number }): Pick => {
+  const explain = (entry: Entry): Pick => {
     const vector = corpus.vectors.get(entry.item.id);
     const reason: Reason =
       entry.affinity >= RECOMMEND.minAffinity && vector
@@ -353,8 +574,76 @@ export function recommend(window: Item[], saved: Item[], now = Date.now()): Reco
     return { ...entry, reason };
   };
 
-  const picks = chosen.map(explain);
-  const shown = new Set(picks.map((p) => p.item.id));
+  // Each reserved pick, with the rank it would like and its place in its own quota.
+  const reserved: { pick: Pick; positions: readonly number[]; order: number }[] = [
+    ...newsSeats.map((item, order) => ({
+      pick: {
+        item,
+        score: item.renderScore,
+        affinity: 0,
+        reason: { kind: 'news' as const, label: 'News seat' },
+      },
+      positions: RECOMMEND.news.positions,
+      order,
+    })),
+    ...exploreSeats.map((seat, order) => ({
+      pick: {
+        item: seat.item,
+        score: seat.item.renderScore,
+        affinity: 0,
+        reason: {
+          kind: 'explore' as const,
+          label: `New ground \u00b7 ${Math.round(seat.novelty * 100)}%`,
+        },
+      },
+      positions: RECOMMEND.explore.positions,
+      order,
+    })),
+  ];
+  const reservedEntries: Entry[] = reserved.map((seat) => ({
+    item: seat.pick.item,
+    score: seat.pick.score,
+    affinity: 0,
+  }));
+
+  // One slot for the lead plus `picks` for the column, less whatever the quotas hold.
+  const meritCount = Math.max(1, RECOMMEND.picks + 1 - reserved.length);
+  const merit = enforceTopicFloor(
+    selectDiverse(scored, corpus, meritCount, reservedEntries),
+    reservedEntries,
+    scored,
+  );
+
+  const strongest = merit[0];
+  const lead = strongest ? explain(strongest) : null;
+  const ranked = merit.slice(1).map(explain);
+
+  // Weave the reserved seats into the column at their configured ranks. Spread through
+  // the list rather than parked in a band at the bottom: a seat nobody scrolls to
+  // gathers no feedback, and feedback is the entire reason the seat exists.
+  const column: (Pick | null)[] = new Array(RECOMMEND.picks).fill(null);
+  for (const { pick, positions, order } of reserved) {
+    const wanted = positions[order];
+    if (wanted === undefined) continue;
+    // `positions` are overall ranks and the lead is rank 1, so the column starts at 2.
+    const index = Math.min(Math.max(wanted, 2), RECOMMEND.picks + 1) - 2;
+    const slot = column[index] === null ? index : column.indexOf(null);
+    if (slot >= 0) column[slot] = pick;
+  }
+  let nextRanked = 0;
+  for (let i = 0; i < column.length; i++) {
+    if (column[i] === null) column[i] = ranked[nextRanked++] ?? null;
+  }
+
+  const picks = column.filter((pick): pick is Pick => pick !== null);
+  const shown = new Set([...(lead ? [lead.item.id] : []), ...picks.map((p) => p.item.id)]);
+
+  // Spares for the rotate button. Passing everything already chosen as `reserved` both
+  // excludes it and keeps it in the diversity arithmetic, so a spare cannot be the fifth
+  // account of a story already on the page.
+  const seated: Entry[] = [...merit, ...reservedEntries];
+  const bench = selectDiverse(scored, corpus, RECOMMEND.bench, seated).map(explain);
+  for (const spare of bench) shown.add(spare.item.id);
 
   // "Because you saved X": nearest neighbours of one article, which is a different and
   // much sharper question than "near your average taste".
@@ -417,11 +706,16 @@ export function recommend(window: Item[], saved: Item[], now = Date.now()): Reco
   }
 
   return {
-    lead: picks[0] ?? null,
-    picks: picks.slice(1),
+    lead,
+    picks,
+    bench,
     because,
     leavingSoon,
     profile,
     candidates: candidates.length,
+    rotation: {
+      hours: RECOMMEND.rotateHours,
+      nextAt: new Date((epoch + 1) * RECOMMEND.rotateHours * 3_600_000),
+    },
   };
 }

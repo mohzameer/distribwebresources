@@ -64,9 +64,126 @@ export const RECOMMEND = {
 
   /** The lead story plus this many ranked picks. */
   picks: 11,
-  /** Diversity floors, enforced during selection rather than after it. */
+
+  /**
+   * Spare picks, computed in the same render and shipped with the page so the rotate
+   * button can swap a row without a round trip.
+   *
+   * This is why rotation is instant and costs nothing: the whole point of the ISR cache
+   * here is that a page view touches Postgres zero times, and Neon's free compute
+   * auto-suspends when idle. A server action per click would wake it every time and
+   * undo that. Ten spares is a long session's worth of rotating; the bench refills on
+   * the next render.
+   */
+  bench: 10,
+  /** Diversity caps, enforced during selection rather than after it. */
   maxPerSource: 2,
   maxPerTopic: 4,
+  /**
+   * ...and a floor. Five topics, twelve slots and a cap of four means three lanes can
+   * legally own the entire page. This guarantees every lane a seat, which is the
+   * difference between a newspaper and a mirror.
+   */
+  minPerTopic: 1,
+
+  /**
+   * RESERVED SEATS, and why they have to exist.
+   *
+   * Everything above ranks by merit, and merit is exactly where a feedback loop starts:
+   * the profile is built only from what you clicked, and you can only click what the
+   * page showed you. Left alone that closes -- the ranking narrows, a narrower page
+   * produces narrower clicks, and the recommender ends up extremely confident about a
+   * shrinking slice of the world. Nothing in the arithmetic above can notice this
+   * happening, because from the inside it looks like improving relevance.
+   *
+   * The aggregator lane also cannot win a seat on merit even today. Measured over the
+   * live window: the best Hacker News item scores 3.6, the best Lobsters item 3.0 and
+   * the best Slashdot item 1.5, against 6.9 for the best item on the page. Slashdot
+   * carries a -1 source weight, the community half-life is 24h, and consumer-tech news
+   * matches none of the topic keywords. News does not rank badly here; it cannot rank at
+   * all. A quota is the only thing that will ever put it in front of you.
+   */
+  news: {
+    /** This lane is exactly the three aggregators: Hacker News, Lobsters, Slashdot. */
+    topic: 'community',
+    slots: 2,
+    /**
+     * Overall ranks on the page; the lead is rank 1. Woven into the ranked column rather
+     * than parked in a band at the bottom, because a seat nobody scrolls to gathers no
+     * feedback, and feedback is the entire reason the seat exists.
+     */
+    positions: [4, 9],
+    /**
+     * The seat also rotates through each source's top few, not just its single best
+     * item. Without this, Slashdot's seat showed the same story every time its turn came
+     * round, which is a quota being filled rather than news being read.
+     */
+    perSourcePool: 4,
+  },
+
+  /**
+   * The experimentation window: seats that go to whatever the profile has the least
+   * vocabulary for, so there is always something on the page capable of teaching the
+   * engine something it does not already believe. Open one and it becomes an ordinary
+   * seed, which is how a new subject gets into the fold instead of being locked out for
+   * never having been shown.
+   */
+  explore: {
+    slots: 2,
+    /** Overall ranks, as above. */
+    positions: [6, 12],
+    /**
+     * Novelty is the share of an article's vector weight sitting on terms the profile
+     * has no weight for at all -- "how much of this is about something you have never
+     * read about". Cosine affinity cannot do this job: over the live window it runs 0.00
+     * to 0.13 with a median of 0.02, so filtering for LOW affinity selects nothing in
+     * particular. Novelty runs 0.42 to 1.00.
+     *
+     * It is a GATE, not the ranking. With a young profile novelty saturates -- the median
+     * item scores 0.93, because a centroid built from a dozen articles is unfamiliar with
+     * nearly everything -- so sorting by it just ranks by how obscure an article's
+     * vocabulary is, which is how "v1.33.0-167.2" and "The Utah Teapot" took seats in
+     * testing. The pool is ranked by editorial score instead, and novelty decides who is
+     * allowed into it.
+     */
+    minNovelty: 0.75,
+    /** Unfamiliar is no excuse for weak: a seat still needs this share of the best score. */
+    minScoreRatio: 0.45,
+    /**
+     * Small on purpose. Rotation walks the pool two at a time, so a pool of 20 is ten
+     * epochs -- five days -- before anything repeats, and every one of those twenty is an
+     * article strong enough to have been a contender anyway. A deeper pool just means the
+     * back half of it is filler.
+     */
+    pool: 20,
+  },
+
+  /**
+   * How often the reserved seats move on.
+   *
+   * Without rotation the experiment is static: the same two unfamiliar articles sit
+   * there until they age out of the window, and a seat you have already decided against
+   * is a wasted seat. Rotating walks the whole pool past you over a couple of weeks.
+   *
+   * Epochs are anchored to the Unix epoch, so at twelve hours they fall at 00:00 and
+   * 12:00 UTC -- 05:30 and 17:30 in Asia/Colombo, about twenty-five minutes before each
+   * ingest run. A rotation therefore lands next to a new batch of articles rather than
+   * reshuffling a page you are halfway through reading.
+   *
+   * This is the only time-dependent thing here besides recency decay, and it is
+   * deterministic in the same way: the page is a pure function of the window and the
+   * clock, so every render inside the same twelve hours is identical.
+   */
+  rotateHours: 12,
+
+  /**
+   * Reserved seats skip the ranking, and therefore skip maximal marginal relevance along
+   * with it -- so nothing stops two quotas spending their slots on the same story. They
+   * did exactly that on the first run: Slashdot and Hacker News both led with "Jensen
+   * Huang said to have had relationship with executive who reports to him", at ranks 4
+   * and 9 of twelve. Above this cosine a seat moves down to its source's next story.
+   */
+  maxSeatSimilarity: 0.35,
 
   /** "Because you saved X" blocks. */
   because: {

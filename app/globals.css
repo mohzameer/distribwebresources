@@ -760,6 +760,14 @@ figure img {
 }
 .why-affinity, .why-similar { color: var(--accent-deep); }
 .why-editorial { color: var(--faint); font-weight: 600; }
+/* The two kinds of row that are NOT there on merit. Coloured away from the personal
+   chips on purpose: the honest reading of them is different, and a reader deciding
+   whether to click deserves to see which claim is being made. */
+.why-news { color: var(--link); }
+.why-explore {
+  color: var(--link); border: 1px solid var(--rule); border-radius: 2px;
+  padding: 0 4px;
+}
 .band .story .why { display: block; margin-top: 6px; }
 
 .recs {
@@ -868,3 +876,54 @@ figure img {
 .privacy li { color: var(--text-soft); }
 .privacy ul { padding-left: 1.2em; }
 .privacy li { margin: 6px 0; }
+
+/* ---------- rotate: swap one recommendation without touching the rest ---------- */
+.rotate {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 1px 6px 2px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--faint);
+  font-family: var(--font-sans-stack);
+}
+.rotate:hover:not(:disabled) {
+  color: var(--accent-deep);
+  border-color: var(--rule);
+  background: var(--accent-soft);
+}
+.rotate:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.rotate:disabled { opacity: 0.3; cursor: default; }
+
+/* The column rows hold the rotate button beside the save/read controls. */
+.pick-actions { display: flex; align-items: flex-start; gap: 2px; }
+.picks .rotate { opacity: 0; transition: opacity 0.12s ease; }
+.picks li:hover .rotate,
+.picks li:focus-within .rotate { opacity: 1; }
+
+/* The lead's button sits inline with its kickers, where there is already a row. */
+.rec-kickers { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.rec-kickers .rotate { margin-left: auto; }
+
+/* Only rows that have actually been rotated animate: keying the node on the article id
+   means a swap remounts it, and this runs on that mount rather than on page load. */
+@keyframes rec-swap-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+.recs .swapped { animation: rec-swap-in 240ms ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .recs .swapped { animation: none; }
+  .picks .rotate { transition: none; }
+}
+
+/* Touch devices have no hover, so the control must not be hover-gated there. */
+@media (hover: none) {
+  .picks .rotate { opacity: 1; }
+}

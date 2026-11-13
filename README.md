@@ -45,6 +45,8 @@ affinity    = cosine(profile, item)
 score       = renderScore x (1 + affinityBoost x affinity x confidence)
 confidence  = min(1, seeds / 25)
 selection   = maximal marginal relevance, lambda 0.72, capped per source and per topic
+novelty     = 1 - (share of the item's vector weight on terms the profile knows)
+reserved    = 2 news seats + 2 explore seats of 12, rotating every 12h
 ```
 
 Four deliberate choices are worth knowing about:
@@ -62,6 +64,54 @@ Four deliberate choices are worth knowing about:
 - **Every row explains itself.** `Matches kubernetes · ebpf` means the profile matched;
   `Top of DevOps` means it did not and the row is there on editorial merit. The chip is
   never a guess.
+
+### Reserved seats: four of the twelve are not ranked at all
+
+Merit ranking is where a feedback loop starts. The profile is built only from what you
+clicked, and you can only click what the page showed you, so left alone it closes: the
+ranking narrows, the narrower page produces narrower clicks, and the engine ends up very
+confident about a shrinking slice of the world. Nothing in the arithmetic above can
+notice that happening, because from the inside it looks like relevance improving.
+
+Two things keep it open, and both bypass the ranking entirely:
+
+| | |
+|---|---|
+| **News seats** (ranks 4 and 9) | The aggregator lane, with Hacker News, Lobsters and Slashdot taking turns. |
+| **Explore seats** (ranks 6 and 12) | The strongest articles whose vocabulary the profile has *never seen*. |
+
+Both rotate every 12 hours, and every reserved row says so on its chip — `News seat`,
+`New ground · 91%` — because a row that is not there on merit is a different claim, and
+the reader deciding whether to click deserves to know which claim is being made.
+
+The news quota is not a nicety. Measured over the live window, the best Hacker News item
+scores 3.6, the best Lobsters item 3.0 and the best Slashdot item 1.5, against 6.9 for the
+best item on the page: Slashdot carries a −1 source weight, the community half-life is
+24h, and consumer-tech news matches none of the topic keywords. News does not rank badly
+here, it cannot rank at all, so a quota is the only thing that will ever surface it. The
+*sources* rotate rather than the items, because taking the two best community items would
+mean Hacker News and Lobsters every single time — Slashdot's ceiling sits below their
+floor. Over eight epochs the seats came out hn-top 5, lobsters 5, slashdot 6.
+
+Exploration is gated on **novelty**, not on low affinity — the share of an article's
+vector weight sitting on terms the profile has no weight for at all. Cosine affinity
+cannot do that job: over the live window it runs 0.00 to 0.13 with a median of 0.02, so
+"low affinity" is true of almost everything and selects nothing in particular. Novelty
+runs 0.42 to 1.00. It is a *gate* rather than the sort key, though, because with a young
+profile it saturates — the median item scores 0.93 — and ranking by it surfaces whatever
+has the most obscure wording, which is how `v1.33.0-167.2` and *The Utah Teapot* took
+seats in testing. The pool is ranked by editorial score and novelty decides who gets in.
+
+Two smaller rules fall out of the same concern. Every topic is guaranteed one seat
+(`minPerTopic`), because the caps stop a lane dominating but do nothing to stop one
+vanishing. And reserved seats are checked against each other for near-duplicates, because
+skipping the ranking means skipping MMR with it — on the first run Slashdot and Hacker
+News both spent a seat on the same Jensen Huang story, at ranks 4 and 9 of twelve.
+
+Clicking a reserved row feeds it straight back in: it becomes an ordinary seed, the
+centroid moves, and the subject is in the fold from the next render. That is the whole
+mechanism — the seats exist to manufacture the evidence the profile would otherwise never
+be given.
 
 There are **no implicit negatives** yet, and that is the one real gap. The obvious one --
 "shown on the front page and never clicked" -- needs an impression log, and the homepage
