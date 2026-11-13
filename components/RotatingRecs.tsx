@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ItemActions, OpenLink } from './ItemActions';
 import { SourceLink } from './SourceLink';
 import { TOPIC_LABELS, type Topic } from '../config/scoring';
+import { RECOMMEND } from '../config/recommend';
 import type { RecView } from './variants/ForYou';
 
 /**
@@ -18,6 +19,11 @@ import type { RecView } from './variants/ForYou';
  *
  * A rotated-out row goes to the back of the queue rather than being discarded, so
  * rotating never loses an article and a long enough session comes back round.
+ *
+ * The ranking breaks over two blocks. The first `columnPicks` sit in the narrow column
+ * beside the lead, which is all the room the lead's height gives; the rest continue
+ * below in two columns. It is one list and one set of ranks either way -- the split is
+ * purely where the page runs out of column.
  */
 export function RotatingRecs({
   lead: initialLead,
@@ -65,64 +71,117 @@ export function RotatingRecs({
     );
   }
 
-  return (
-    <div className="recs">
-      <article
-        /* Keyed on the article so a swap remounts the node and the animation runs. */
-        key={lead.item.id}
-        className={`lead${lead.item.read ? ' read' : ''}${spun.includes('lead') ? ' swapped' : ''}`}
-      >
-        <div className="rec-kickers">
-          <span className="kicker">{TOPIC_LABELS[lead.item.topic as Topic] ?? lead.item.topic}</span>
-          <Why rec={lead} />
-          <RotateButton onClick={rotateLead} exhausted={exhausted} />
-        </div>
-        <h2>
-          <OpenLink id={lead.item.id} url={lead.item.url} read={lead.item.read}>
-            {lead.item.title}
-          </OpenLink>
-        </h2>
-        <Byline item={lead.item} />
-        {lead.item.imageUrl ? (
-          <figure>
-            <img src={lead.item.imageUrl} alt="" />
-          </figure>
-        ) : null}
-        {lead.item.summary ? <p className="standfirst">{lead.item.summary}</p> : null}
-        <ItemActions id={lead.item.id} read={lead.item.read} saved={lead.item.saved} compact />
-      </article>
+  const column = picks.slice(0, RECOMMEND.columnPicks);
+  const overflow = picks.slice(RECOMMEND.columnPicks);
 
-      <ol className="picks">
-        {picks.map((rec, index) => (
-          <li
-            key={rec.item.id}
-            className={[
-              rec.item.read ? 'read' : '',
-              spun.includes(String(index)) ? 'swapped' : '',
-            ].filter(Boolean).join(' ') || undefined}
-          >
-            <span className="rank">{index + 2}</span>
-            <div className="pick-body">
-              <h3>
-                <OpenLink id={rec.item.id} url={rec.item.url} read={rec.item.read}>
-                  {rec.item.title}
-                </OpenLink>
-              </h3>
-              <p className="pick-sub">
-                <SourceLink item={rec.item} className="src" />
-                <span className="dot">&middot;</span>
-                <span>{rec.item.ageLabel}</span>
-                <Why rec={rec} />
-              </p>
-            </div>
-            <div className="pick-actions">
-              <RotateButton onClick={() => rotatePick(index)} exhausted={exhausted} />
-              <ItemActions id={rec.item.id} read={rec.item.read} saved={rec.item.saved} />
-            </div>
-          </li>
-        ))}
-      </ol>
-    </div>
+  return (
+    <>
+      <div className="recs">
+        <article
+          /* Keyed on the article so a swap remounts the node and the animation runs. */
+          key={lead.item.id}
+          className={`lead${lead.item.read ? ' read' : ''}${spun.includes('lead') ? ' swapped' : ''}`}
+        >
+          <div className="rec-kickers">
+            <span className="kicker">{TOPIC_LABELS[lead.item.topic as Topic] ?? lead.item.topic}</span>
+            <Why rec={lead} />
+            <RotateButton onClick={rotateLead} exhausted={exhausted} />
+          </div>
+          <h2>
+            <OpenLink id={lead.item.id} url={lead.item.url} read={lead.item.read}>
+              {lead.item.title}
+            </OpenLink>
+          </h2>
+          <Byline item={lead.item} />
+          {lead.item.imageUrl ? (
+            <figure>
+              <img src={lead.item.imageUrl} alt="" />
+            </figure>
+          ) : null}
+          {lead.item.summary ? <p className="standfirst">{lead.item.summary}</p> : null}
+          <ItemActions id={lead.item.id} read={lead.item.read} saved={lead.item.saved} compact />
+        </article>
+
+        <ol className="picks">
+          {column.map((rec, index) => (
+            <PickRow
+              key={rec.item.id}
+              rec={rec}
+              index={index}
+              spun={spun.includes(String(index))}
+              exhausted={exhausted}
+              onRotate={rotatePick}
+            />
+          ))}
+        </ol>
+      </div>
+
+      {overflow.length > 0 ? (
+        <section className="band more-recs">
+          <div className="band-head">
+            <h2>More for you</h2>
+            <span className="count">The same ranking, continued</span>
+          </div>
+          <ol className="picks picks-grid" start={RECOMMEND.columnPicks + 2}>
+            {overflow.map((rec, offset) => {
+              const index = offset + RECOMMEND.columnPicks;
+              return (
+                <PickRow
+                  key={rec.item.id}
+                  rec={rec}
+                  index={index}
+                  spun={spun.includes(String(index))}
+                  exhausted={exhausted}
+                  onRotate={rotatePick}
+                />
+              );
+            })}
+          </ol>
+        </section>
+      ) : null}
+    </>
+  );
+}
+
+/** One row of the ranking. Identical in both blocks, ranks included. */
+function PickRow({
+  rec,
+  index,
+  spun,
+  exhausted,
+  onRotate,
+}: {
+  rec: RecView;
+  index: number;
+  spun: boolean;
+  exhausted: boolean;
+  onRotate: (index: number) => void;
+}) {
+  return (
+    <li
+      className={[rec.item.read ? 'read' : '', spun ? 'swapped' : '']
+        .filter(Boolean)
+        .join(' ') || undefined}
+    >
+      <span className="rank">{index + 2}</span>
+      <div className="pick-body">
+        <h3>
+          <OpenLink id={rec.item.id} url={rec.item.url} read={rec.item.read}>
+            {rec.item.title}
+          </OpenLink>
+        </h3>
+        <p className="pick-sub">
+          <SourceLink item={rec.item} className="src" />
+          <span className="dot">&middot;</span>
+          <span>{rec.item.ageLabel}</span>
+          <Why rec={rec} />
+        </p>
+      </div>
+      <div className="pick-actions">
+        <RotateButton onClick={() => onRotate(index)} exhausted={exhausted} />
+        <ItemActions id={rec.item.id} read={rec.item.read} saved={rec.item.saved} />
+      </div>
+    </li>
   );
 }
 

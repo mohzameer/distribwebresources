@@ -802,6 +802,22 @@ figure img {
   padding-top: 2px;
 }
 .pick-body { flex: 1; min-width: 0; }
+
+/* The ranking continues below the lead in two columns. The column beside the lead only
+   has room for about seven rows before it runs past the lead's own height and leaves
+   half the grid empty, so the rest of the page lives here -- same list, same ranks. */
+.more-recs .band-head { margin-bottom: 14px; }
+.picks-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 28px; }
+.picks-grid > li:nth-child(2n) { border-left: 1px solid var(--rule); padding-left: 28px; }
+/* Rules go ABOVE each row rather than below it, the way .neighbours does. A bottom rule
+   would have to be cancelled on the last ROW, and "the last row" is the last two items
+   when the count is even but only the last one when it is odd -- a top rule on
+   everything past the first row is correct either way. */
+.picks-grid > li {
+  border-bottom: 0; padding-bottom: 0; margin-bottom: 0;
+  border-top: 1px solid var(--rule); padding-top: 13px; margin-top: 13px;
+}
+.picks-grid > li:nth-child(-n + 2) { border-top: 0; padding-top: 0; margin-top: 0; }
 .picks h3 {
   font-family: var(--font-serif-stack); font-weight: 700; font-size: 16px;
   line-height: 1.28; margin: 0; letter-spacing: -0.004em; text-wrap: balance;
@@ -862,6 +878,10 @@ figure img {
     border-top: 1px solid var(--rule); padding-top: 14px; margin-top: 14px;
   }
   .picks .actions { opacity: 1; }
+  .picks-grid { grid-template-columns: 1fr; }
+  .picks-grid > li:nth-child(2n) { border-left: 0; padding-left: 0; }
+  /* One column, so only the very first row has no rule above it. */
+  .picks-grid > li:nth-child(2) { border-top: 1px solid var(--rule); padding-top: 13px; margin-top: 13px; }
   .ps-strength { white-space: normal; }
 }
 

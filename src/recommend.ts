@@ -463,19 +463,40 @@ function pickNews(candidates: Item[], corpus: Corpus, epoch: number): Item[] {
 
   // Sorted so the rotation is a function of the clock alone, never of row order.
   const sources = [...bySource.keys()].sort();
-  const picked: Item[] = [];
-  for (const source of rotate(sources, RECOMMEND.news.slots, epoch)) {
+  if (sources.length === 0) return [];
+
+  // Each source's shortlist, rotated within itself so a seat shows that source's news
+  // rather than its one highest-scoring story over and over.
+  const shortlist = new Map<string, Item[]>();
+  for (const source of sources) {
     const best = (bySource.get(source) ?? [])
       .slice()
       .sort((a, b) => b.renderScore - a.renderScore)
       .slice(0, RECOMMEND.news.perSourcePool);
-    if (best.length === 0) continue;
-    // Rotate within the source as well, so a seat shows that source's news rather than
-    // its one highest-scoring story over and over. Walking forward from the rotated
-    // offset also gives somewhere to go when the first choice duplicates another seat.
-    const order = best.map((_, k) => best[(epoch + k) % best.length]!);
-    const item = order.find((candidate) => !tooSimilar(candidate, picked, corpus)) ?? order[0]!;
-    picked.push(item);
+    shortlist.set(source, best.map((_, k) => best[(epoch + k) % best.length]!));
+  }
+
+  // Round-robin rather than one seat per source. There are only three aggregators and
+  // the quota asks for five, so the sources cycle and each hands over its next story
+  // when its turn comes round again -- which also spreads the seats evenly when the
+  // quota is smaller than the number of sources.
+  const cursors = new Map<string, number>();
+  const picked: Item[] = [];
+  for (let seat = 0; seat < RECOMMEND.news.slots; seat++) {
+    const source = sources[(epoch + seat) % sources.length]!;
+    const list = shortlist.get(source) ?? [];
+    let cursor = cursors.get(source) ?? 0;
+    // Walk forward past anything already seated or near-identical to it. Two aggregators
+    // carrying the same story is the normal case, not an edge one.
+    while (cursor < list.length) {
+      const candidate = list[cursor]!;
+      cursor += 1;
+      if (picked.some((seated) => seated.id === candidate.id)) continue;
+      if (tooSimilar(candidate, picked, corpus)) continue;
+      picked.push(candidate);
+      break;
+    }
+    cursors.set(source, cursor);
   }
   return picked;
 }

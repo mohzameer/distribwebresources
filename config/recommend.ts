@@ -62,8 +62,21 @@ export const RECOMMEND = {
   /** MMR is O(pool x picks); the pool is capped so the page stays sub-millisecond. */
   candidatePool: 150,
 
-  /** The lead story plus this many ranked picks. */
-  picks: 11,
+  /**
+   * The lead story plus this many ranked picks.
+   *
+   * Nineteen rather than eleven because the page was too thin to carry a quota: at
+   * twelve rows, giving the aggregators a quarter of the page meant three of the twelve
+   * best engineering articles losing their slot. A longer page buys the density to do
+   * both. `columnPicks` decides where it breaks over two blocks.
+   */
+  picks: 19,
+  /**
+   * How many picks sit in the narrow column beside the lead. The rest continue below in
+   * two columns, because a column long enough to hold nineteen rows leaves most of the
+   * lead's half of the grid empty.
+   */
+  columnPicks: 7,
 
   /**
    * Spare picks, computed in the same render and shipped with the page so the rotate
@@ -72,15 +85,23 @@ export const RECOMMEND = {
    * This is why rotation is instant and costs nothing: the whole point of the ISR cache
    * here is that a page view touches Postgres zero times, and Neon's free compute
    * auto-suspends when idle. A server action per click would wake it every time and
-   * undo that. Ten spares is a long session's worth of rotating; the bench refills on
-   * the next render.
+   * undo that. The bench refills on the next render.
+   *
+   * Sized against the page: at twenty visible rows, ten spares ran out after rotating
+   * half of them, so it rises with `picks` rather than staying at the count that suited
+   * a twelve-row page.
    */
-  bench: 10,
-  /** Diversity caps, enforced during selection rather than after it. */
-  maxPerSource: 2,
-  maxPerTopic: 4,
+  bench: 16,
   /**
-   * ...and a floor. Five topics, twelve slots and a cap of four means three lanes can
+   * Diversity caps, enforced during selection rather than after it. Both rise with the
+   * page: holding `maxPerTopic` at 4 across twenty rows plus a ten-deep bench would
+   * leave the later selections unable to fill at all, since five lanes x 4 is thirty
+   * items and the page and bench together want thirty.
+   */
+  maxPerSource: 3,
+  maxPerTopic: 7,
+  /**
+   * ...and a floor. Five topics, twenty slots and a cap of seven means three lanes can
    * legally own the entire page. This guarantees every lane a seat, which is the
    * difference between a newspaper and a mirror.
    */
@@ -106,19 +127,28 @@ export const RECOMMEND = {
   news: {
     /** This lane is exactly the three aggregators: Hacker News, Lobsters, Slashdot. */
     topic: 'community',
-    slots: 2,
     /**
-     * Overall ranks on the page; the lead is rank 1. Woven into the ranked column rather
-     * than parked in a band at the bottom, because a seat nobody scrolls to gathers no
-     * feedback, and feedback is the entire reason the seat exists.
+     * Five of twenty rows, up from two of twelve. With only three aggregators this is
+     * more seats than sources, so the quota round-robins: the sources cycle and each one
+     * hands over its next story when its turn comes round again.
      */
-    positions: [4, 9],
+    slots: 5,
+    /**
+     * Overall ranks on the page; the lead is rank 1. Spread the length of the ranking
+     * rather than parked in a band at the bottom, because a seat nobody scrolls to
+     * gathers no feedback, and feedback is the entire reason the seat exists. Two of
+     * these land in the column beside the lead, so the density is visible before any
+     * scrolling at all.
+     */
+    positions: [3, 7, 11, 15, 19],
     /**
      * The seat also rotates through each source's top few, not just its single best
      * item. Without this, Slashdot's seat showed the same story every time its turn came
-     * round, which is a quota being filled rather than news being read.
+     * round, which is a quota being filled rather than news being read. Deep enough that
+     * a source can fill two seats in one edition and still have somewhere to go when a
+     * story duplicates one already seated.
      */
-    perSourcePool: 4,
+    perSourcePool: 6,
   },
 
   /**
@@ -129,9 +159,9 @@ export const RECOMMEND = {
    * never having been shown.
    */
   explore: {
-    slots: 2,
+    slots: 3,
     /** Overall ranks, as above. */
-    positions: [6, 12],
+    positions: [5, 13, 20],
     /**
      * Novelty is the share of an article's vector weight sitting on terms the profile
      * has no weight for at all -- "how much of this is about something you have never

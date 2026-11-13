@@ -46,7 +46,7 @@ score       = renderScore x (1 + affinityBoost x affinity x confidence)
 confidence  = min(1, seeds / 25)
 selection   = maximal marginal relevance, lambda 0.72, capped per source and per topic
 novelty     = 1 - (share of the item's vector weight on terms the profile knows)
-reserved    = 2 news seats + 2 explore seats of 12, rotating every 12h
+reserved    = 5 news seats + 3 explore seats of 20, rotating every 12h
 ```
 
 Four deliberate choices are worth knowing about:
@@ -65,7 +65,7 @@ Four deliberate choices are worth knowing about:
   `Top of DevOps` means it did not and the row is there on editorial merit. The chip is
   never a guess.
 
-### Reserved seats: four of the twelve are not ranked at all
+### Reserved seats: eight of the twenty are not ranked at all
 
 Merit ranking is where a feedback loop starts. The profile is built only from what you
 clicked, and you can only click what the page showed you, so left alone it closes: the
@@ -77,8 +77,8 @@ Two things keep it open, and both bypass the ranking entirely:
 
 | | |
 |---|---|
-| **News seats** (ranks 4 and 9) | The aggregator lane, with Hacker News, Lobsters and Slashdot taking turns. |
-| **Explore seats** (ranks 6 and 12) | The strongest articles whose vocabulary the profile has *never seen*. |
+| **News seats** (ranks 3, 7, 11, 15, 19) | The aggregator lane, with Hacker News, Lobsters and Slashdot taking turns. |
+| **Explore seats** (ranks 5, 13, 20) | The strongest articles whose vocabulary the profile has *never seen*. |
 
 Both rotate every 12 hours, and every reserved row says so on its chip — `News seat`,
 `New ground · 91%` — because a row that is not there on merit is a different claim, and
@@ -89,9 +89,17 @@ scores 3.6, the best Lobsters item 3.0 and the best Slashdot item 1.5, against 6
 best item on the page: Slashdot carries a −1 source weight, the community half-life is
 24h, and consumer-tech news matches none of the topic keywords. News does not rank badly
 here, it cannot rank at all, so a quota is the only thing that will ever surface it. The
-*sources* rotate rather than the items, because taking the two best community items would
-mean Hacker News and Lobsters every single time — Slashdot's ceiling sits below their
-floor. Over eight epochs the seats came out hn-top 5, lobsters 5, slashdot 6.
+*sources* rotate rather than the items, because taking the best community items outright
+would mean Hacker News and Lobsters every single time — Slashdot's ceiling sits below
+their floor. There are five seats and only three aggregators, so the quota round-robins:
+the sources cycle, and each hands over its next story when its turn comes round again.
+Community ends up 5 to 7 rows of the twenty, at ranks 3, 7, 11, 15 and 19.
+
+The page is twenty rows rather than twelve for the same reason. At twelve, giving the
+aggregators a quarter of the page cost three of the twelve best engineering articles
+their slot; the extra length buys the density to do both. Seven picks sit in the column
+beside the lead — all the room the lead's own height gives — and the rest continue below
+in two columns under *More for you*, one list and one run of ranks throughout.
 
 Exploration is gated on **novelty**, not on low affinity — the share of an article's
 vector weight sitting on terms the profile has no weight for at all. Cosine affinity
@@ -106,7 +114,7 @@ Two smaller rules fall out of the same concern. Every topic is guaranteed one se
 (`minPerTopic`), because the caps stop a lane dominating but do nothing to stop one
 vanishing. And reserved seats are checked against each other for near-duplicates, because
 skipping the ranking means skipping MMR with it — on the first run Slashdot and Hacker
-News both spent a seat on the same Jensen Huang story, at ranks 4 and 9 of twelve.
+News both spent a seat on the same Jensen Huang story, two rows apart.
 
 Clicking a reserved row feeds it straight back in: it becomes an ordinary seed, the
 centroid moves, and the subject is in the fold from the next render. That is the whole
